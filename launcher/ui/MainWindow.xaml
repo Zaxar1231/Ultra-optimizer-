@@ -19,6 +19,7 @@
             <RadioButton x:Name="NavHome" GroupName="nav" Style="{StaticResource NavItem}" Tag="&#xE80F;" Content="Главная" IsChecked="True"/>
             <RadioButton x:Name="NavOptimize" GroupName="nav" Style="{StaticResource NavItem}" Tag="&#xE945;" Content="Оптимизация"/>
             <RadioButton x:Name="NavCustomize" GroupName="nav" Style="{StaticResource NavItem}" Tag="&#xE771;" Content="Настройка"/>
+            <RadioButton x:Name="NavNetwork" GroupName="nav" Style="{StaticResource NavItem}" Tag="&#xE701;" Content="Сеть"/>
             <RadioButton x:Name="NavBench" GroupName="nav" Style="{StaticResource NavItem}" Tag="&#xE9D9;" Content="Замер"/>
             <RadioButton x:Name="NavTools" GroupName="nav" Style="{StaticResource NavItem}" Tag="&#xE90F;" Content="Инструменты"/>
             <RadioButton x:Name="NavLog" GroupName="nav" Style="{StaticResource NavItem}" Tag="&#xE81C;" Content="Журнал"/>
@@ -131,6 +132,136 @@
                 </StackPanel>
             </ScrollViewer>
 
+            <!-- ============================================================ NETWORK -->
+            <ScrollViewer x:Name="PageNetwork" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled" Visibility="Collapsed">
+                <StackPanel Margin="36,32,36,36" MaxWidth="1040">
+                    <TextBlock Style="{StaticResource HeadlineMedium}" Text="Сеть и задержка"/>
+                    <TextBlock Style="{StaticResource BodyMedium}" FontSize="15" Margin="0,6,0,24"
+                               Text="Замер пинга, выбор самого быстрого DNS и твики сетевой карты и TCP, которые убирают задержки на стороне компьютера."/>
+                    <Border CornerRadius="28" Background="{DynamicResource PrimaryContainer}" Padding="32,26">
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="Auto"/>
+                            </Grid.ColumnDefinitions>
+                            <StackPanel VerticalAlignment="Center">
+                                <TextBlock x:Name="NetHeroTitle" FontFamily="{StaticResource DisplayFont}" FontSize="26" TextWrapping="Wrap"
+                                           Foreground="{DynamicResource OnPrimaryContainer}" Text="Проверим, как ведёт себя сеть"/>
+                                <TextBlock x:Name="NetHeroText" Margin="0,8,0,20" TextWrapping="Wrap" FontSize="14" LineHeight="21" Opacity="0.85"
+                                           Foreground="{DynamicResource OnPrimaryContainer}"
+                                           Text="20 пингов до роутера и крупных серверов: средняя задержка, джиттер (разброс) и потери. Проверь до и после оптимизации."/>
+                                <WrapPanel>
+                                    <Button x:Name="NetPing" Style="{StaticResource FilledButton}" Tag="&#xE701;" Content="Проверить пинг" Margin="0,0,8,8"/>
+                                    <Button x:Name="NetOptimize" Style="{StaticResource OutlinedButton}" Tag="&#xE945;" Content="Применить сетевые твики" Margin="0,0,8,8"/>
+                                    <Button x:Name="NetReset" Style="{StaticResource TextButton}" Foreground="{DynamicResource OnPrimaryContainer}" Content="Сбросить сеть" Margin="0,0,8,8"/>
+                                </WrapPanel>
+                            </StackPanel>
+                            <StackPanel x:Name="NetHeroScore" Grid.Column="1" Margin="28,0,8,0" VerticalAlignment="Center" Visibility="Collapsed">
+                                <TextBlock x:Name="NetHeroValue" FontFamily="{StaticResource DisplayFont}" FontSize="56" FontWeight="SemiBold"
+                                           Foreground="{DynamicResource Primary}" HorizontalAlignment="Center"/>
+                                <TextBlock x:Name="NetHeroCaption" FontSize="13" Foreground="{DynamicResource OnPrimaryContainer}" HorizontalAlignment="Center" Opacity="0.85"/>
+                            </StackPanel>
+                        </Grid>
+                    </Border>
+
+                    <TextBlock Style="{StaticResource TitleSmall}" Text="Пинг"/>
+                    <UniformGrid x:Name="PingGrid" Columns="5" Margin="0,0,-12,0"/>
+
+                    <DockPanel Margin="4,20,0,10">
+                        <Button x:Name="DnsTest" DockPanel.Dock="Right" Style="{StaticResource TextButton}" Tag="&#xE72C;" Content="Проверить DNS"/>
+                        <TextBlock Style="{StaticResource TitleSmall}" Margin="0" VerticalAlignment="Center" Text="DNS-сервер"/>
+                    </DockPanel>
+                    <TextBlock x:Name="DnsNote" Style="{StaticResource BodyMedium}" Margin="4,0,0,12"
+                               Text="DNS превращает адреса сайтов и игровых серверов в IP. Быстрый DNS ускоряет подключение и загрузку страниц. Нажми «Проверить DNS», затем «Использовать» у самого быстрого."/>
+                    <Border Style="{StaticResource OutlinedCard}" Padding="0">
+                        <StackPanel x:Name="DnsList"/>
+                    </Border>
+
+                    <TextBlock Style="{StaticResource TitleSmall}" Text="Что делают сетевые твики"/>
+                    <Border Style="{StaticResource OutlinedCard}">
+                        <TextBlock Style="{StaticResource BodyMedium}" LineHeight="22"
+                                   Text="• Без алгоритма Нейгла: мелкие игровые пакеты уходят сразу, без задержки до 200 мс.&#x0a;• Сетевая карта в режиме низкой задержки: без Interrupt Moderation, Flow Control, LSO и Packet Coalescing.&#x0a;• Сетевая карта и Wi-Fi без энергосбережения, Wi-Fi без фонового поиска сетей — нет скачков пинга.&#x0a;• TCP: автонастройка окна, RSS по всем ядрам, без ограничения сети для мультимедиа, QoS без резерва.&#x0a;&#x0a;Всё попадает в бэкап и откатывается. Тонкая настройка — «Оптимизация» → «Сеть и задержка». Пинг до сервера игры зависит в первую очередь от провайдера и расстояния: твики убирают задержки внутри компьютера и домашней сети, но не ускоряют сам интернет."/>
+                    </Border>
+                </StackPanel>
+            </ScrollViewer>
+
+            <!-- ============================================================ PAGESTARTUP -->
+            <ScrollViewer x:Name="PageStartup" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled" Visibility="Collapsed">
+                <StackPanel Margin="28,24,36,36" MaxWidth="1048">
+                    <DockPanel Margin="0,0,0,4">
+                        <Button x:Name="PageStartupBack" DockPanel.Dock="Left" Style="{StaticResource IconButton}" Tag="&#xE72B;" ToolTip="Назад к инструментам" Margin="0,0,8,0" VerticalAlignment="Center"/>
+                        <TextBlock Style="{StaticResource HeadlineMedium}" Text="Автозагрузка" VerticalAlignment="Center"/>
+                    </DockPanel>
+                    <TextBlock Style="{StaticResource BodyMedium}" FontSize="15" Margin="8,4,0,20" Text="Программы, которые запускаются вместе с Windows. Выключение работает так же, как в диспетчере задач: запись остаётся, её можно включить обратно."/>
+                    <WrapPanel Margin="8,0,0,0">
+                        <Button x:Name="StartupRefresh" Style="{StaticResource TonalButton}" Tag="&#xE72C;" Content="Обновить" Margin="0,0,8,12"/>
+                        <Button x:Name="StartupTaskMgr" Style="{StaticResource TextButton}" Content="Диспетчер задач" Margin="0,0,8,12"/>
+                    </WrapPanel>
+                    <TextBlock x:Name="StartupStatus" Style="{StaticResource BodyMedium}" Margin="12,4,0,12"/>
+                    <Border Style="{StaticResource OutlinedCard}" Padding="0" Margin="8,0,0,0">
+                        <StackPanel x:Name="StartupList"/>
+                    </Border>
+                </StackPanel>
+            </ScrollViewer>
+
+            <!-- ============================================================ PAGETASKS -->
+            <ScrollViewer x:Name="PageTasks" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled" Visibility="Collapsed">
+                <StackPanel Margin="28,24,36,36" MaxWidth="1048">
+                    <DockPanel Margin="0,0,0,4">
+                        <Button x:Name="PageTasksBack" DockPanel.Dock="Left" Style="{StaticResource IconButton}" Tag="&#xE72B;" ToolTip="Назад к инструментам" Margin="0,0,8,0" VerticalAlignment="Center"/>
+                        <TextBlock Style="{StaticResource HeadlineMedium}" Text="Планировщик задач" VerticalAlignment="Center"/>
+                    </DockPanel>
+                    <TextBlock Style="{StaticResource BodyMedium}" FontSize="15" Margin="8,4,0,20" Text="Задачи, которые Windows и программы запускают по расписанию: обновляторы, сборщики телеметрии, «помощники». Выключенная задача не удаляется."/>
+                    <WrapPanel Margin="8,0,0,0">
+                        <Border CornerRadius="28" Background="{DynamicResource SurfaceContainerHigh}" Height="48" Padding="18,0" Width="360" HorizontalAlignment="Left" Margin="0,0,12,12">
+                            <Grid>
+                                <TextBlock Style="{StaticResource Icon}" Text="&#xE721;" FontSize="16" HorizontalAlignment="Left" Foreground="{DynamicResource OnSurfaceVariant}"/>
+                                <TextBlock x:Name="TasksSearchHint" Text="Поиск задач" Margin="30,0,0,0" VerticalAlignment="Center" Foreground="{DynamicResource OnSurfaceVariant}" IsHitTestVisible="False"/>
+                                <TextBox x:Name="TasksSearch" Margin="27,0,0,0" VerticalAlignment="Center" Background="Transparent" BorderThickness="0" FontSize="15"
+                                         Foreground="{DynamicResource OnSurface}" CaretBrush="{DynamicResource Primary}" FocusVisualStyle="{x:Null}"/>
+                            </Grid>
+                        </Border>
+                        <StackPanel Orientation="Horizontal" Margin="0,4,12,12" VerticalAlignment="Top">
+                            <RadioButton x:Name="TasksFilterOther" GroupName="tasksf" Style="{StaticResource Segment}" Tag="20,0,0,20" Content="Сторонние" IsChecked="True"/>
+                            <RadioButton x:Name="TasksFilterMs" GroupName="tasksf" Style="{StaticResource Segment}" Tag="0" Content="Microsoft"/>
+                            <RadioButton x:Name="TasksFilterAll" GroupName="tasksf" Style="{StaticResource Segment}" Tag="0,20,20,0" Content="Все"/>
+                        </StackPanel>
+                        <Button x:Name="TasksRefresh" Style="{StaticResource TextButton}" Tag="&#xE72C;" Content="Обновить" Margin="0,4,0,12"/>
+                    </WrapPanel>
+                    <TextBlock x:Name="TasksStatus" Style="{StaticResource BodyMedium}" Margin="12,4,0,12"/>
+                    <Border Style="{StaticResource OutlinedCard}" Padding="0" Margin="8,0,0,0">
+                        <StackPanel x:Name="TasksList"/>
+                    </Border>
+                </StackPanel>
+            </ScrollViewer>
+
+            <!-- ============================================================ PAGEAPPS -->
+            <ScrollViewer x:Name="PageApps" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled" Visibility="Collapsed">
+                <StackPanel Margin="28,24,36,36" MaxWidth="1048">
+                    <DockPanel Margin="0,0,0,4">
+                        <Button x:Name="PageAppsBack" DockPanel.Dock="Left" Style="{StaticResource IconButton}" Tag="&#xE72B;" ToolTip="Назад к инструментам" Margin="0,0,8,0" VerticalAlignment="Center"/>
+                        <TextBlock Style="{StaticResource HeadlineMedium}" Text="Приложения" VerticalAlignment="Center"/>
+                    </DockPanel>
+                    <TextBlock Style="{StaticResource BodyMedium}" FontSize="15" Margin="8,4,0,20" Text="Встроенные и установленные из Store приложения. Отметь ненужные и удали одной кнопкой. Встроенные приложения Windows возвращаются через «Откатить всё», остальные — из Microsoft Store."/>
+                    <WrapPanel Margin="8,0,0,0">
+                        <Border CornerRadius="28" Background="{DynamicResource SurfaceContainerHigh}" Height="48" Padding="18,0" Width="360" HorizontalAlignment="Left" Margin="0,0,12,12">
+                            <Grid>
+                                <TextBlock Style="{StaticResource Icon}" Text="&#xE721;" FontSize="16" HorizontalAlignment="Left" Foreground="{DynamicResource OnSurfaceVariant}"/>
+                                <TextBlock x:Name="AppsSearchHint" Text="Поиск приложений" Margin="30,0,0,0" VerticalAlignment="Center" Foreground="{DynamicResource OnSurfaceVariant}" IsHitTestVisible="False"/>
+                                <TextBox x:Name="AppsSearch" Margin="27,0,0,0" VerticalAlignment="Center" Background="Transparent" BorderThickness="0" FontSize="15"
+                                         Foreground="{DynamicResource OnSurface}" CaretBrush="{DynamicResource Primary}" FocusVisualStyle="{x:Null}"/>
+                            </Grid>
+                        </Border>
+                        <Button x:Name="AppsRecommend" Style="{StaticResource TonalButton}" Tag="&#xE73E;" Content="Отметить рекомендуемые" Margin="0,4,8,12"/>
+                        <Button x:Name="AppsRemove" Style="{StaticResource DangerButton}" Tag="&#xE74D;" Content="Удалить выбранные" Margin="0,4,8,12"/>
+                    </WrapPanel>
+                    <TextBlock x:Name="AppsStatus" Style="{StaticResource BodyMedium}" Margin="12,4,0,12"/>
+                    <Border Style="{StaticResource OutlinedCard}" Padding="0" Margin="8,0,0,0">
+                        <StackPanel x:Name="AppsList"/>
+                    </Border>
+                </StackPanel>
+            </ScrollViewer>
+
             <!-- ============================================================ BENCHMARK -->
             <ScrollViewer x:Name="PageBench" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled" Visibility="Collapsed">
                 <StackPanel Margin="36,32,36,36" MaxWidth="1040">
@@ -173,6 +304,45 @@
                     <TextBlock Style="{StaticResource HeadlineMedium}" Text="Инструменты"/>
                     <TextBlock Style="{StaticResource BodyMedium}" FontSize="15" Margin="0,6,0,20" Text="Починка Windows, отчёт о железе и другие утилиты."/>
                     <UniformGrid x:Name="ToolsGrid" Columns="2" Margin="0,0,-16,0">
+                        <Border Style="{StaticResource OutlinedCard}" Margin="0,0,16,16">
+                            <DockPanel>
+                                <Border DockPanel.Dock="Top" Width="48" Height="48" CornerRadius="14" Background="{DynamicResource SecondaryContainer}" HorizontalAlignment="Left">
+                                    <TextBlock Style="{StaticResource Icon}" Text="&#xE768;" FontSize="22" Foreground="{DynamicResource OnSecondaryContainer}"/>
+                                </Border>
+                                <TextBlock DockPanel.Dock="Top" Style="{StaticResource TitleLarge}" Text="Автозагрузка" Margin="0,16,0,6"/>
+                                <TextBlock DockPanel.Dock="Top" Style="{StaticResource BodyMedium}" Margin="0,0,0,16" Text="Что стартует вместе с Windows: программа, издатель, команда. Включай и выключай без диспетчера задач."/>
+                                <WrapPanel VerticalAlignment="Bottom">
+                                    <Button x:Name="ToolStartup" Style="{StaticResource TonalButton}" Tag="&#xE768;" Content="Открыть" Margin="0,0,8,8"/>
+                                </WrapPanel>
+                            </DockPanel>
+                        </Border>
+
+                        <Border Style="{StaticResource OutlinedCard}" Margin="0,0,16,16">
+                            <DockPanel>
+                                <Border DockPanel.Dock="Top" Width="48" Height="48" CornerRadius="14" Background="{DynamicResource TertiaryContainer}" HorizontalAlignment="Left">
+                                    <TextBlock Style="{StaticResource Icon}" Text="&#xE787;" FontSize="22" Foreground="{DynamicResource OnTertiaryContainer}"/>
+                                </Border>
+                                <TextBlock DockPanel.Dock="Top" Style="{StaticResource TitleLarge}" Text="Планировщик задач" Margin="0,16,0,6"/>
+                                <TextBlock DockPanel.Dock="Top" Style="{StaticResource BodyMedium}" Margin="0,0,0,16" Text="Обновляторы, телеметрия и «помощники», которые запускаются по расписанию. Поиск и выключение в один клик."/>
+                                <WrapPanel VerticalAlignment="Bottom">
+                                    <Button x:Name="ToolTasks" Style="{StaticResource TonalButton}" Tag="&#xE787;" Content="Открыть" Margin="0,0,8,8"/>
+                                </WrapPanel>
+                            </DockPanel>
+                        </Border>
+
+                        <Border Style="{StaticResource OutlinedCard}" Margin="0,0,16,16">
+                            <DockPanel>
+                                <Border DockPanel.Dock="Top" Width="48" Height="48" CornerRadius="14" Background="{DynamicResource PrimaryContainer}" HorizontalAlignment="Left">
+                                    <TextBlock Style="{StaticResource Icon}" Text="&#xE71D;" FontSize="22" Foreground="{DynamicResource OnPrimaryContainer}"/>
+                                </Border>
+                                <TextBlock DockPanel.Dock="Top" Style="{StaticResource TitleLarge}" Text="Приложения" Margin="0,16,0,6"/>
+                                <TextBlock DockPanel.Dock="Top" Style="{StaticResource BodyMedium}" Margin="0,0,0,16" Text="Встроенные приложения и приложения из Store: отметь ненужные и удали разом. Рекомендации подсвечены."/>
+                                <WrapPanel VerticalAlignment="Bottom">
+                                    <Button x:Name="ToolApps" Style="{StaticResource TonalButton}" Tag="&#xE71D;" Content="Открыть" Margin="0,0,8,8"/>
+                                </WrapPanel>
+                            </DockPanel>
+                        </Border>
+
 
                         <Border Style="{StaticResource OutlinedCard}" Margin="0,0,16,16">
                             <DockPanel>

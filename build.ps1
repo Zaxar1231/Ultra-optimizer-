@@ -59,7 +59,7 @@ $icon = Join-Path $ui 'app.ico'
 $resources  = @(Get-ChildItem $stage -File | ForEach-Object { "-resource:$($_.FullName),app/$($_.Name)" })
 $resources += Get-ChildItem $ui -File | ForEach-Object { "-resource:$($_.FullName),ui/$($_.Name)" }
 $sources = @(Get-ChildItem (Join-Path $root 'launcher') -Filter *.cs | ForEach-Object FullName) + $buildInfo
-$libs = 'mscorlib', 'System', 'System.Core', 'System.Xml', 'System.Xaml', 'System.Management', 'System.Web.Extensions', 'WindowsBase', 'PresentationCore', 'PresentationFramework'
+$libs = 'mscorlib', 'System', 'System.Core', 'System.Xml', 'System.Xaml', 'System.Management', 'System.Web.Extensions', 'System.Drawing', 'Microsoft.CSharp', 'WindowsBase', 'PresentationCore', 'PresentationFramework'
 $common = @('-target:winexe', '-platform:anycpu', '-optimize+', '-nologo', "-win32icon:$icon", "-out:$exe")
 
 $csc = $null

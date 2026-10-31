@@ -20,10 +20,12 @@
      -DisableVBS / -DisableMitigations   turn the risky options on without asking (used by the GUI)
      -Only power.plan,cpu.mmcss,...      apply exactly these tweaks (ids: launcher/ui/tweaks.json)
      -NoRestorePoint                     skip the System Restore point (used for the quick cleanup)
+     -SetDns 1.1.1.1,1.0.0.1 | auto      set DNS on active adapters (backed up, undone by -Undo)
+     -RemoveApps Name1,Name2             remove these Store apps (backed up like the junk list)
 =====================================================================
 #>
 # -NoDuck is accepted for compatibility with older launchers and ignored (optimizerDuck is no longer downloaded)
-param([switch]$Undo, [switch]$Yes, [switch]$NoApps, [switch]$NoDuck, [switch]$DisableVBS, [switch]$DisableMitigations, [string]$Only, [switch]$NoRestorePoint)
+param([switch]$Undo, [switch]$Yes, [switch]$NoApps, [switch]$NoDuck, [switch]$DisableVBS, [switch]$DisableMitigations, [string]$Only, [switch]$NoRestorePoint, [string]$SetDns, [string]$RemoveApps)
 
 #Requires -RunAsAdministrator
 $ErrorActionPreference = 'SilentlyContinue'
@@ -221,6 +223,8 @@ if ($Undo) {
             if ($c) { Set-CimInstance -InputObject $c -Property @{ Enable = [bool]$u.Enable } }
         }
     }
+    if ($BK.Misc.TcpAutoTuning) { Set-NetTCPSetting -SettingName Internet -AutoTuningLevelLocal $BK.Misc.TcpAutoTuning }
+    if ($BK.Misc.Rss) { Set-NetOffloadGlobalSetting -ReceiveSideScaling $BK.Misc.Rss }
     Step "Restoring power / boot / file system"
     if ($BK.Misc.PowerScheme) { powercfg /setactive $BK.Misc.PowerScheme }
     powercfg /delete 77777777-7777-7777-7777-777777777777 2>$null
@@ -270,6 +274,42 @@ Write-Host "  $vendor $($cs.Model) | $(if ($laptop) {'LAPTOP'} else {'DESKTOP'})
 Write-Host "  $($os.Caption) build $build | RAM $ramGB GB | System disk: $($sysDisk.MediaType)"
 Write-Host "  GPU: $($gpus -join ' | ')"
 Write-Host "=============================================================" -ForegroundColor Magenta
+
+# ---------------------------------------------------------------------
+#  QUICK MODES (used by the app): change DNS / remove selected apps, then exit
+# ---------------------------------------------------------------------
+if ($SetDns -or $RemoveApps) {
+    if ($SetDns) {
+        Step "DNS: $SetDns"
+        $servers = @($SetDns -split '[,;\s]+' | Where-Object { $_ -and $_ -ne 'auto' })
+        foreach ($a in @(Get-NetAdapter -Physical | Where-Object Status -eq 'Up')) {
+            $key = "HKLM:\SYSTEM\CurrentControlSet\Services\Tcpip\Parameters\Interfaces\$($a.InterfaceGuid)"
+            if ($servers.Count) {
+                Set-Tweak $key 'NameServer' ($servers -join ',') 'String'          # records the original (or DHCP) first
+                Set-DnsClientServerAddress -InterfaceIndex $a.ifIndex -ServerAddresses $servers
+            } else {
+                Set-Tweak $key 'NameServer' '' 'String'
+                Set-DnsClientServerAddress -InterfaceIndex $a.ifIndex -ResetServerAddresses
+            }
+            Ok "$($a.Name): $(if ($servers.Count) { $servers -join ', ' } else { 'automatic (from router / provider)' })"
+        }
+        Clear-DnsClientCache
+    }
+    if ($RemoveApps) {
+        Step "Removing selected apps"
+        foreach ($name in @($RemoveApps -split '[,;\s]+' | Where-Object { $_ })) {
+            Get-AppxPackage -Name $name | ForEach-Object {
+                if ($BK.Appx -notcontains $_.Name) { $BK.Appx += $_.Name }
+                Remove-AppxPackage $_.PackageFullName
+                if (Get-AppxPackage -Name $_.Name) { Warn "could not remove $($_.Name)" } else { Ok "removed $($_.Name)" }
+            }
+        }
+    }
+    Save-BK
+    Write-Host "DONE"
+    Stop-Transcript | Out-Null
+    exit
+}
 
 # ---------------------------------------------------------------------
 #  WHAT TO APPLY: every tweak has an id (catalog: launcher/ui/tweaks.json).
@@ -380,6 +420,72 @@ if (Use 'power.nic') {
         }
     }
     Ok "done"
+}
+Save-BK
+
+# ---------------------------------------------------------------------
+#  NETWORK LATENCY - adapter properties are recorded in $BK.Nic and restored by -Undo
+# ---------------------------------------------------------------------
+function NicSet($keywords, [string]$value, [switch]$Lowest) {
+    $n = 0
+    foreach ($pp in @(Get-NetAdapter -Physical | Where-Object Status -ne 'Disabled' | Get-NetAdapterAdvancedProperty)) {
+        if ($keywords -notcontains $pp.RegistryKeyword) { continue }
+        $valid = @($pp.ValidRegistryValues)
+        $target = $value
+        if ($Lowest) { if (-not $valid.Count) { continue }; $target = "$(@($valid | ForEach-Object { [int]$_ } | Sort-Object)[0])" }
+        if ($valid.Count -and $valid -notcontains $target) { continue }
+        if ("$($pp.RegistryValue)" -eq $target) { continue }
+        if (-not ($BK.Nic | Where-Object { $_.Adapter -eq $pp.Name -and $_.Keyword -eq $pp.RegistryKeyword })) {
+            $BK.Nic += [pscustomobject]@{ Adapter = $pp.Name; Keyword = $pp.RegistryKeyword; Value = "$($pp.RegistryValue)" }
+        }
+        Set-NetAdapterAdvancedProperty -Name $pp.Name -RegistryKeyword $pp.RegistryKeyword -RegistryValue $target
+        Ok "$($pp.Name): $($pp.DisplayName) -> $target"; $n++
+    }
+    return $n
+}
+if (Use 'net.nagle') {
+    Step "Network: Nagle's algorithm off (packets are sent immediately)"
+    $n = 0
+    Get-ChildItem 'HKLM:\SYSTEM\CurrentControlSet\Services\Tcpip\Parameters\Interfaces' | ForEach-Object {
+        $ip = Get-ItemProperty $_.PSPath
+        if ($ip.DhcpIPAddress -or ($ip.IPAddress -and "$($ip.IPAddress)" -ne '0.0.0.0')) {
+            Set-Tweak $_.PSPath 'TcpAckFrequency' 1; Set-Tweak $_.PSPath 'TCPNoDelay' 1; Set-Tweak $_.PSPath 'TcpDelAckTicks' 0; $n++
+        }
+    }
+    Ok "$n network interface(s): no delayed ACK, no Nagle"
+}
+if (Use 'net.nic.latency') {
+    Step "Network adapter: low latency mode"
+    [void](NicSet @('*InterruptModeration') '0')
+    [void](NicSet @('ITR') '0')
+    [void](NicSet @('*FlowControl') '0')
+    [void](NicSet @('*LsoV2IPv4','*LsoV2IPv6','*LsoV1IPv4') '0')
+    [void](NicSet @('*PacketCoalescing') '0')
+    Ok "done (interrupt moderation, flow control, large send offload, packet coalescing off)"
+}
+if (Use 'net.wifi') {
+    Step "Wi-Fi: no background roaming scans (fewer ping spikes)"
+    $n = NicSet @('RoamAggressiveness','RoamingAggressiveness','*RoamAggressiveness','RoamTrigger') '' -Lowest
+    [void](NicSet @('MIMOPowerSaveMode') '3')
+    Ok "$n Wi-Fi setting(s) changed"
+}
+if (Use 'net.tcp') {
+    Step "TCP stack: receive window auto-tuning, RSS, ports"
+    $at = (Get-NetTCPSetting -SettingName Internet).AutoTuningLevelLocal
+    if ($at) { Misc-Once 'TcpAutoTuning' "$at" }
+    Set-NetTCPSetting -SettingName Internet -AutoTuningLevelLocal Normal
+    $rss = (Get-NetOffloadGlobalSetting).ReceiveSideScaling
+    if ($rss) { Misc-Once 'Rss' "$rss" }
+    Set-NetOffloadGlobalSetting -ReceiveSideScaling Enabled
+    $tp = 'HKLM:\SYSTEM\CurrentControlSet\Services\Tcpip\Parameters'
+    Set-Tweak $tp 'MaxUserPort' 65534
+    Set-Tweak $tp 'TcpTimedWaitDelay' 30
+    Set-Tweak $tp 'DefaultTTL' 64
+    Ok "auto-tuning normal, RSS on, more ephemeral ports, faster port reuse"
+}
+if (Use 'net.qos') {
+    Set-Tweak 'HKLM:\SOFTWARE\Policies\Microsoft\Windows\Psched' 'NonBestEffortLimit' 0
+    Ok "QoS: no bandwidth reserved for Windows"
 }
 Save-BK
 

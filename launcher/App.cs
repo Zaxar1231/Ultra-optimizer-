@@ -273,7 +273,7 @@ static class Program
     }
 }
 
-class MainUi
+partial class MainUi
 {
     public Window Window;
     readonly FrameworkElement root;
@@ -289,10 +289,11 @@ class MainUi
         root = (FrameworkElement)Program.LoadXaml("ui/MainWindow.xaml");
         iconFont = (FontFamily)Application.Current.FindResource("IconFont");
         textFont = (FontFamily)Application.Current.FindResource("TextFont");
-        foreach (var p in new[] { "PageHome", "PageOptimize", "PageCustomize", "PageBench", "PageTools", "PageLog", "PageAbout" }) pages[p] = E<FrameworkElement>(p);
+        foreach (var p in new[] { "PageHome", "PageOptimize", "PageCustomize", "PageNetwork", "PageBench", "PageStartup", "PageTasks", "PageApps", "PageTools", "PageLog", "PageAbout" }) pages[p] = E<FrameworkElement>(p);
         Wire();
         BuildTweaks();
         BuildCustomize();
+        InitPages();
         RefreshBench(Benchmark.Load());
         FillInfo(null);
         RefreshStatus();
@@ -315,7 +316,7 @@ class MainUi
         Window = new Window
         {
             Title = "Ultimate Optimizer",
-            Width = 1160, Height = 800, MinWidth = 900, MinHeight = 640,
+            Width = 1160, Height = 800, MinWidth = 900, MinHeight = 700,
             WindowStartupLocation = WindowStartupLocation.CenterScreen,
             Content = root
         };
@@ -376,7 +377,7 @@ class MainUi
 
     void Wire()
     {
-        foreach (var pair in new[] { new[] { "NavHome", "PageHome" }, new[] { "NavOptimize", "PageOptimize" }, new[] { "NavCustomize", "PageCustomize" }, new[] { "NavBench", "PageBench" }, new[] { "NavTools", "PageTools" },
+        foreach (var pair in new[] { new[] { "NavHome", "PageHome" }, new[] { "NavOptimize", "PageOptimize" }, new[] { "NavCustomize", "PageCustomize" }, new[] { "NavNetwork", "PageNetwork" }, new[] { "NavBench", "PageBench" }, new[] { "NavTools", "PageTools" },
                                      new[] { "NavLog", "PageLog" }, new[] { "NavAbout", "PageAbout" } })
         {
             string page = pair[1];
@@ -464,6 +465,7 @@ class MainUi
         E<UniformGrid>("ToolsGrid").Columns = w > 960 ? 2 : 1;
         E<UniformGrid>("ProfileGrid").Columns = w > 1100 ? 4 : 2;
         E<UniformGrid>("BenchGrid").Columns = w > 1080 ? 4 : 2;
+        E<UniformGrid>("PingGrid").Columns = w > 1100 ? 5 : 3;
     }
 
     // ================================================================== navigation
@@ -1237,9 +1239,10 @@ class MainUi
     void SetBusy(bool b)
     {
         busy = b;
-        foreach (var n in new[] { "FabOptimize", "HomeOptimize", "OptRun", "ToolRepair", "ToolNet", "ToolReport", "ToolClean", "BenchRun", "TweaksReset" })
+        foreach (var n in new[] { "FabOptimize", "HomeOptimize", "OptRun", "ToolRepair", "ToolNet", "ToolReport", "ToolClean", "BenchRun", "TweaksReset", "NetOptimize", "AppsRemove" })
             E<Button>(n).IsEnabled = !b;
         if (b) { E<Button>("HomeUndo").IsEnabled = false; E<Button>("OptUndo").IsEnabled = false; }
+        else UpdateRemoveButton();
         var host = E<Grid>("ProgressHost");
         var bar = E<Border>("ProgressBar");
         if (b)
@@ -1526,6 +1529,11 @@ class MainUi
                 groupExpanders[0](false);
                 Navigate("NavBench"); RefreshBench(DemoBench()); Shot(dir, "bench" + sfx);
                 Navigate("NavCustomize"); Shot(dir, "customize" + sfx);
+                Navigate("NavNetwork"); DemoNetwork(); Shot(dir, "network" + sfx);
+                Navigate("NavTools");
+                ShowPage("PageStartup"); if (!dark) LoadStartup(true); Shot(dir, "startup" + sfx);
+                ShowPage("PageTasks"); if (!dark) LoadTasks(true); Shot(dir, "tasks" + sfx);
+                ShowPage("PageApps"); if (!dark) LoadApps(true); Shot(dir, "apps" + sfx);
                 Navigate("NavTools"); Shot(dir, "tools" + sfx);
 
                 Navigate("NavLog");
