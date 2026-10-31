@@ -761,7 +761,9 @@ class MainUi
     {
         const int w = 1160, h = 760;
         Trace("shot " + name);
-        Pump(450);
+        Pump(450);                                   // let animations settle while hosted in the window
+        bool hosted = Window != null && Window.Content == root;
+        if (hosted) Window.Content = null;           // the CI screen may be narrower than the window -> lay out detached
         root.Measure(new Size(w, h));
         root.Arrange(new Rect(0, 0, w, h));
         root.UpdateLayout();
@@ -772,6 +774,7 @@ class MainUi
         enc.Frames.Add(BitmapFrame.Create(bmp));
         using (var f = File.Create(Path.Combine(dir, name + ".png"))) enc.Save(f);
         Trace("saved " + name);
+        if (hosted) Window.Content = root;
     }
 
     public int SaveScreenshots(string dir)
