@@ -1,0 +1,45 @@
+name: CI
+
+on:
+  push:
+    branches: ['**']
+    tags-ignore: ['v*']
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  check-and-build:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Parse all scripts with Windows PowerShell 5.1
+        shell: powershell
+        run: |
+          $bad = 0
+          foreach ($f in Get-ChildItem scripts, . -Filter *.ps1) {
+            $errs = $null
+            [void][Management.Automation.Language.Parser]::ParseFile($f.FullName, [ref]$null, [ref]$errs)
+            foreach ($e in $errs) { Write-Host "::error file=$($f.Name),line=$($e.Extent.StartLineNumber)::$($e.Message)"; $bad++ }
+          }
+          if ($bad) { exit 1 }
+
+      - name: PSScriptAnalyzer
+        shell: pwsh
+        run: |
+          Install-Module PSScriptAnalyzer -Force -Scope CurrentUser
+          $r = Invoke-ScriptAnalyzer -Path scripts -Severity Error, Warning -Settings ./PSScriptAnalyzerSettings.psd1
+          $r | Format-Table ScriptName, Line, RuleName, Message -AutoSize -Wrap
+          if ($r | Where-Object Severity -eq 'Error') { exit 1 }
+
+      - name: Build
+        shell: powershell
+        run: ./build.ps1
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: UltimateOptimizer
+          path: dist/*
