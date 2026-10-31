@@ -287,7 +287,7 @@
     </Border>
 
     <!-- ================================================================ SNACKBAR -->
-    <Border x:Name="Snackbar" Grid.ColumnSpan="2" HorizontalAlignment="Center" VerticalAlignment="Bottom" Margin="96,0,0,28"
+    <Border x:Name="Snackbar" Grid.ColumnSpan="2" HorizontalAlignment="Center" VerticalAlignment="Bottom" Margin="96,0,0,92"
             CornerRadius="6" Background="{DynamicResource InverseSurface}" MinWidth="360" MaxWidth="640" Padding="16,4,6,4" Visibility="Collapsed">
         <Border.Effect>
             <DropShadowEffect BlurRadius="12" ShadowDepth="3" Direction="270" Opacity="0.3"/>

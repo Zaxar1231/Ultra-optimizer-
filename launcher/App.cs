@@ -785,10 +785,12 @@ class MainUi
             Trace("sysinfo ok");
 
             // host the UI in an off-screen window so templates, bindings and animations run like in real use
+            root.Width = 1160;
+            root.Height = 760;
             Window = new Window
             {
-                Content = root, Width = 1160, Height = 760, Left = -20000, Top = -20000,
-                WindowStyle = WindowStyle.None, ShowInTaskbar = false, ShowActivated = false
+                Content = root, SizeToContent = SizeToContent.WidthAndHeight, Left = -20000, Top = -20000,
+                WindowStyle = WindowStyle.None, ResizeMode = ResizeMode.NoResize, ShowInTaskbar = false, ShowActivated = false
             };
             try { Window.Show(); Trace("window shown"); } catch (Exception ex) { Window.Content = null; Trace("no window: " + ex.Message); }
 
