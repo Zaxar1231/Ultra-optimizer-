@@ -8,7 +8,7 @@
   - Hardware-aware: laptop/desktop, SSD/HDD, RAM size, NVIDIA/AMD/Intel, vendor
   - Downloads tools (winget) + NVIDIA Profile Inspector (GitHub) and imports
     a max-performance driver profile (setting IDs verified against NVIDIA NVAPI header)
-  - Optionally downloads optimizerDuck (github.com/itsfatduck/optimizerDuck) to C:\Tools
+  - Extra tweaks ported from optimizerDuck (GPU vendor power states, input, privacy, services)
   - EVERY change is recorded first -> exact rollback:  .\Ultimate-Optimizer.ps1 -Undo
 
   Usage (PowerShell as Administrator):
@@ -16,13 +16,14 @@
      .\Ultimate-Optimizer.ps1            interactive (asks about risky stuff)
      .\Ultimate-Optimizer.ps1 -Yes       no questions, safe defaults, installs tools
      .\Ultimate-Optimizer.ps1 -NoApps    skip software downloads
-     .\Ultimate-Optimizer.ps1 -NoDuck    don't download optimizerDuck
      .\Ultimate-Optimizer.ps1 -Undo      restore EVERYTHING exactly as it was
      -DisableVBS / -DisableMitigations   turn the risky options on without asking (used by the GUI)
      -Only power.plan,cpu.mmcss,...      apply exactly these tweaks (ids: launcher/ui/tweaks.json)
+     -NoRestorePoint                     skip the System Restore point (used for the quick cleanup)
 =====================================================================
 #>
-param([switch]$Undo, [switch]$Yes, [switch]$NoApps, [switch]$NoDuck, [switch]$DisableVBS, [switch]$DisableMitigations, [string]$Only)
+# -NoDuck is accepted for compatibility with older launchers and ignored (optimizerDuck is no longer downloaded)
+param([switch]$Undo, [switch]$Yes, [switch]$NoApps, [switch]$NoDuck, [switch]$DisableVBS, [switch]$DisableMitigations, [string]$Only, [switch]$NoRestorePoint)
 
 #Requires -RunAsAdministrator
 $ErrorActionPreference = 'SilentlyContinue'
@@ -212,6 +213,14 @@ if ($Undo) {
     }
     Step "Restoring network adapter power settings"
     foreach ($n in $BK.Nic) { Set-NetAdapterAdvancedProperty -Name $n.Adapter -RegistryKeyword $n.Keyword -RegistryValue $n.Value }
+    if ($BK.Misc.UsbPower) {
+        Step "Restoring USB power management"
+        $cur = @(Get-CimInstance -Namespace root\wmi -ClassName MSPower_DeviceEnable)
+        foreach ($u in @($BK.Misc.UsbPower)) {
+            $c = $cur | Where-Object { $_.InstanceName -eq $u.Instance } | Select-Object -First 1
+            if ($c) { Set-CimInstance -InputObject $c -Property @{ Enable = [bool]$u.Enable } }
+        }
+    }
     Step "Restoring power / boot / file system"
     if ($BK.Misc.PowerScheme) { powercfg /setactive $BK.Misc.PowerScheme }
     powercfg /delete 77777777-7777-7777-7777-777777777777 2>$null
@@ -265,19 +274,18 @@ Write-Host "=============================================================" -Fore
 # ---------------------------------------------------------------------
 #  WHAT TO APPLY: every tweak has an id (catalog: launcher/ui/tweaks.json).
 #  -Only a,b,c applies exactly that list (used by the app's profiles / switches).
-#  Without -Only: everything except the risky ones; software depends on -NoApps / -NoDuck.
+#  Without -Only: everything except the risky ones; software depends on -NoApps.
 # ---------------------------------------------------------------------
 $doVBS  = $DisableVBS -or (-not $Only -and (Ask "`n Disable VBS / Memory Integrity? (+5-15% FPS, breaks WSL2/Docker/Hyper-V/some anticheats like FACEIT need it OFF anyway)"))
 $doMit  = $DisableMitigations -or (-not $Only -and (Ask " Disable Spectre/Meltdown mitigations? (+FPS mainly on CPUs older than 2019, less security)"))
 $doApps = -not $NoApps
-if (-not $Yes -and -not $NoApps -and -not $Only) { $doApps = -not ((Read-Host " Download & install tools + NVIDIA profile + optimizerDuck? [Y/n]") -match '^(n|no|net)$') }
+if (-not $Yes -and -not $NoApps -and -not $Only) { $doApps = -not ((Read-Host " Download & install tools + NVIDIA profile? [Y/n]") -match '^(n|no|net)$') }
 $Sel = @($Only -split '[,;\s]+' | Where-Object { $_ })
 function Use($id) {
     if ($Sel.Count) { return $Sel -contains $id }
     switch -Wildcard ($id) {
         'risk.vbs'         { return $doVBS }
         'risk.mitigations' { return $doMit }
-        'soft.duck'        { return $doApps -and -not $NoDuck }
         'soft.*'           { return $doApps }
         'ui.transparency'  { return $ramGB -le 8 }
         default            { return $true }
@@ -285,11 +293,13 @@ function Use($id) {
 }
 if ($Sel.Count) { Ok "selected: $($Sel.Count) tweaks" }
 
-Step "Restore point"
-Enable-ComputerRestore -Drive "$env:SystemDrive\"
-Set-Tweak 'HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion\SystemRestore' 'SystemRestorePointCreationFrequency' 0
-Checkpoint-Computer -Description "Before Ultimate-Optimizer" -RestorePointType MODIFY_SETTINGS
-Ok "created (plus exact backup in $BKFile)"
+if (-not $NoRestorePoint) {
+    Step "Restore point"
+    Enable-ComputerRestore -Drive "$env:SystemDrive\"
+    Set-Tweak 'HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion\SystemRestore' 'SystemRestorePointCreationFrequency' 0
+    Checkpoint-Computer -Description "Before Ultimate-Optimizer" -RestorePointType MODIFY_SETTINGS
+    Ok "created (plus exact backup in $BKFile)"
+}
 
 # =====================================================================
 #  1. POWER  (Atlas power scheme values + laptop-safe battery side)
@@ -346,6 +356,15 @@ if (Use 'power.diag') {
     Disable-Task '\Microsoft\Windows\Power Efficiency Diagnostics\AnalyzeSystem'
     Ok "done"
 }
+if (Use 'power.usb') {
+    Step "USB devices: no power saving"
+    Set-Tweak 'HKLM:\SYSTEM\CurrentControlSet\Control\USB\AutomaticSurpriseRemoval' 'AttemptRecoveryFromUsbPowerDrain' 0
+    $usb = @(Get-CimInstance -Namespace root\wmi -ClassName MSPower_DeviceEnable | Where-Object { $_.InstanceName -match '^USB' })
+    if (-not $BK.Misc.ContainsKey('UsbPower')) { Misc-Once 'UsbPower' @($usb | ForEach-Object { [pscustomobject]@{ Instance = $_.InstanceName; Enable = [bool]$_.Enable } }) }
+    $n = 0
+    foreach ($u in $usb) { if ($u.Enable) { Set-CimInstance -InputObject $u -Property @{ Enable = $false }; $n++ } }
+    Ok "$n USB device(s) won't be turned off to save power"
+}
 if (Use 'power.nic') {
     Step "Network adapter power saving off (Atlas list)"
     $props = Get-NetAdapter -Physical | Get-NetAdapterAdvancedProperty
@@ -381,6 +400,11 @@ if (Use 'cpu.mmcss') {
     Set-Tweak "$mm\Tasks\Games" 'Scheduling Category' 'High' 'String'
     Set-Tweak "$mm\Tasks\Games" 'SFIO Priority' 'High' 'String'
     Ok "done"
+}
+if (Use 'cpu.mmcss.nolazy') {
+    Set-Tweak $mm 'NoLazyMode' 1
+    Set-Tweak $mm 'AlwaysOn' 1
+    Ok "MMCSS: no lazy mode (lowest audio/game latency, a bit more power)"
 }
 if (Use 'cpu.timer') {
     Step "Timers: dynamic tick off, global timer resolution"
@@ -456,6 +480,26 @@ if (Use 'gpu.vendor') {
         }
     }
 }
+# per-vendor driver keys under the display adapter class
+$gpuKeys = @(Get-ChildItem 'HKLM:\SYSTEM\CurrentControlSet\Control\Class\{4d36e968-e325-11ce-bfc1-08002be10318}' |
+             Where-Object { $_.PSChildName -match '^\d{4}$' } |
+             ForEach-Object { $ip = Get-ItemProperty $_.PSPath; [pscustomobject]@{ Path = $_.PSPath; Vendor = "$($ip.ProviderName) $($ip.DriverDesc)" } })
+function GpuSet($vendorRx, $name, $value) { foreach ($g in $gpuKeys | Where-Object { $_.Vendor -match $vendorRx }) { Try-Tweak $g.Path $name $value } }
+if ((Use 'gpu.amd.aspm') -and $hasAMD) { GpuSet 'AMD|ATI' 'EnableAspmL0s' 0; GpuSet 'AMD|ATI' 'EnableAspmL1' 0; Ok "AMD: PCIe ASPM off" }
+if ((Use 'gpu.amd.powergating') -and $hasAMD) {
+    GpuSet 'AMD|ATI' 'DisablePowerGating' 1; GpuSet 'AMD|ATI' 'PP_GPUPowerDownEnabled' 0; GpuSet 'AMD|ATI' 'DisableDynamicPstate' 1
+    Ok "AMD: power gating off"
+}
+if ((Use 'gpu.amd.clockgating') -and $hasAMD) {
+    GpuSet 'AMD|ATI' 'DisableVCEPowerGating' 1; GpuSet 'AMD|ATI' 'DisableVceClockGating' 1
+    GpuSet 'AMD|ATI' 'EnableUvdClockGating' 0; GpuSet 'AMD|ATI' 'EnableVceSwClockGating' 0
+    Ok "AMD: video engine clock gating off"
+}
+if ((Use 'gpu.nv.pstate') -and $hasNV) { GpuSet 'NVIDIA' 'DisableDynamicPstate' 1; Ok "NVIDIA: dynamic P-states off (GPU stays at full clocks)" }
+if ((Use 'gpu.nv.asyncpstates') -and $hasNV) { GpuSet 'NVIDIA' 'DisableASyncPstates' 1; Ok "NVIDIA: async P-states off" }
+$hasIntel = [bool]($gpus -match 'Intel')
+if ((Use 'gpu.intel.flips') -and $hasIntel) { GpuSet 'Intel' 'Display1_DisableAsyncFlips' 1; Ok "Intel: async flips off" }
+if ((Use 'gpu.intel.vsync') -and $hasIntel) { GpuSet 'Intel' 'AdaptiveVsyncEnable' 0; Ok "Intel: adaptive V-Sync off" }
 Save-BK
 
 # =====================================================================
@@ -497,6 +541,22 @@ if (Use 'ui.mouse') {
     Set-Tweak 'HKCU:\Control Panel\Mouse' 'MouseThreshold2' '0' 'String'
     Ok "mouse acceleration off"
 }
+if (Use 'input.keyboard') {
+    Set-Tweak 'HKCU:\Control Panel\Keyboard' 'KeyboardDelay' '0' 'String'
+    Set-Tweak 'HKCU:\Control Panel\Keyboard' 'KeyboardSpeed' '31' 'String'
+    Ok "keyboard: shortest repeat delay, fastest repeat rate"
+}
+if (Use 'input.stickykeys') {
+    Set-Tweak 'HKCU:\Control Panel\Accessibility\StickyKeys' 'Flags' '26' 'String'
+    Set-Tweak 'HKCU:\Control Panel\Accessibility\Keyboard Response' 'Flags' '2' 'String'
+    Set-Tweak 'HKCU:\Control Panel\Accessibility\ToggleKeys' 'Flags' '34' 'String'
+    Ok "Sticky/Filter/Toggle keys hotkeys off (no popup after pressing Shift 5 times in a game)"
+}
+if (Use 'ui.start') {
+    Set-Tweak 'HKCU:\Software\Policies\Microsoft\Windows\Explorer' 'HideRecommendedSection' 1
+    Set-Tweak 'HKLM:\SOFTWARE\Policies\Microsoft\Windows\CloudContent' 'DisableConsumerAccountStateContent' 1
+    Ok "Start: no 'Recommended' section and account nags"
+}
 if (Use 'ui.bgapps') {
     Set-Tweak 'HKCU:\Software\Microsoft\Windows\CurrentVersion\BackgroundAccessApplications' 'GlobalUserDisabled' 1
     Set-Tweak 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Search' 'BackgroundAppGlobalToggle' 0
@@ -523,6 +583,14 @@ if (Use 'privacy.telemetry') {
     Set-Tweak 'HKLM:\SOFTWARE\Policies\Microsoft\SQMClient\Windows' 'CEIPEnable' 0
     Set-Tweak 'HKLM:\SOFTWARE\Policies\Microsoft\Windows\WDI\{9c5a40da-b965-4fc3-8781-88dd50a6299d}' 'ScenarioExecutionEnabled' 0
     Set-Tweak 'HKLM:\SOFTWARE\Microsoft\PolicyManager\default\System\AllowExperimentation' 'Value' 0
+    Set-Tweak $dc 'DoNotShowFeedbackNotifications' 1
+    Set-Tweak $dc 'AllowCommercialDataPipeline' 0
+    Set-Tweak $dc 'MicrosoftEdgeDataOptIn' 0
+    Set-Tweak 'HKCU:\SOFTWARE\Microsoft\Siuf\Rules' 'NumberOfSIUFInPeriod' 0
+    Set-Tweak 'HKCU:\Software\Policies\Microsoft\Windows\EdgeUI' 'DisableMFUTracking' 1
+    Set-Tweak 'HKCU:\SOFTWARE\Policies\Microsoft\Assistance\Client\1.0' 'NoExplicitFeedback' 1
+    Set-Tweak 'HKLM:\SOFTWARE\Policies\Microsoft\Assistance\Client\1.0' 'NoActiveHelp' 1
+    Set-Tweak 'HKCU:\SOFTWARE\Microsoft\Speech_OneCore\Settings\OnlineSpeechPrivacy' 'HasAccepted' 0
     Ok "done"
 }
 if (Use 'privacy.appcompat') {
@@ -533,11 +601,16 @@ if (Use 'privacy.appcompat') {
 if (Use 'privacy.wer') {
     $wer = 'HKLM:\SOFTWARE\Policies\Microsoft\Windows\Windows Error Reporting'
     Set-Tweak $wer 'Disabled' 1; Set-Tweak $wer 'DontShowUI' 1; Set-Tweak $wer 'LoggingDisabled' 1; Set-Tweak $wer 'DontSendAdditionalData' 1
+    Set-Tweak 'HKLM:\SOFTWARE\Microsoft\Windows\Windows Error Reporting' 'Disabled' 1
+    Set-Tweak 'HKLM:\SOFTWARE\Policies\Microsoft\Windows\HandwritingErrorReports' 'PreventHandwritingErrorReports' 1
     Ok "error reporting off"
 }
 if (Use 'privacy.activity') {
     Set-Tweak 'HKLM:\SOFTWARE\Policies\Microsoft\Windows\System' 'EnableActivityFeed' 0
     Set-Tweak 'HKLM:\SOFTWARE\Policies\Microsoft\Windows\System' 'UploadUserActivities' 0
+    Set-Tweak 'HKLM:\SOFTWARE\Policies\Microsoft\Windows\System' 'PublishUserActivities' 0
+    Set-Tweak 'HKLM:\SOFTWARE\Policies\Microsoft\Windows\System' 'PublishUserActivitiesOnUserConsent' 0
+    Set-Tweak 'HKCU:\SOFTWARE\Microsoft\InputPersonalization\TrainedDataStore' 'HarvestContacts' 0
     Set-Tweak 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced' 'Start_TrackProgs' 0
     Set-Tweak 'HKCU:\Software\Microsoft\InputPersonalization' 'RestrictImplicitInkCollection' 1
     Set-Tweak 'HKCU:\Software\Microsoft\InputPersonalization' 'RestrictImplicitTextCollection' 1
@@ -546,8 +619,15 @@ if (Use 'privacy.activity') {
 }
 if (Use 'privacy.ads') {
     $cdm = 'HKCU:\Software\Microsoft\Windows\CurrentVersion\ContentDeliveryManager'
-    foreach ($n in 'SilentInstalledAppsEnabled','SystemPaneSuggestionsEnabled','SubscribedContent-338388Enabled','SubscribedContent-338389Enabled','SubscribedContent-353698Enabled','SoftLandingEnabled') { Set-Tweak $cdm $n 0 }
+    foreach ($n in 'SilentInstalledAppsEnabled','SystemPaneSuggestionsEnabled','SubscribedContent-338387Enabled','SubscribedContent-338388Enabled','SubscribedContent-338389Enabled',
+                   'SubscribedContent-353698Enabled','SoftLandingEnabled','ContentDeliveryAllowed','PreInstalledAppsEnabled','PreInstalledAppsEverEnabled','OemPreInstalledAppsEnabled') { Set-Tweak $cdm $n 0 }
     Set-Tweak 'HKLM:\SOFTWARE\Policies\Microsoft\Windows\AdvertisingInfo' 'DisabledByGroupPolicy' 1
+    Set-Tweak 'HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\AdvertisingInfo' 'Enabled' 0
+    Set-Tweak 'HKCU:\SOFTWARE\Microsoft\Windows\CurrentVersion\Privacy' 'TailoredExperiencesWithDiagnosticDataEnabled' 0
+    $cc = 'HKLM:\SOFTWARE\Policies\Microsoft\Windows\CloudContent'
+    foreach ($n in 'DisableTailoredExperiencesWithDiagnosticData','DisableWindowsConsumerFeatures','DisableSoftLanding','DisableThirdPartySuggestions') { Set-Tweak $cc $n 1 }
+    Set-Tweak 'HKCU:\Software\Microsoft\Windows\CurrentVersion\UserProfileEngagement' 'ScoobeSystemSettingEnabled' 0
+    Set-Tweak 'HKCU:\Control Panel\International\User Profile' 'HttpAcceptLanguageOptOut' 1
     Ok "ads, suggestions and silent app installs off"
 }
 if (Use 'privacy.do') {
@@ -556,19 +636,56 @@ if (Use 'privacy.do') {
 }
 if (Use 'privacy.ai') {
     Set-Tweak 'HKCU:\Software\Policies\Microsoft\Windows\WindowsCopilot' 'TurnOffWindowsCopilot' 1
-    Set-Tweak 'HKLM:\SOFTWARE\Policies\Microsoft\Windows\WindowsAI' 'DisableAIDataAnalysis' 1
-    Ok "Copilot and Recall off"
+    Set-Tweak 'HKLM:\SOFTWARE\Policies\Microsoft\Windows\WindowsCopilot' 'TurnOffWindowsCopilot' 1
+    Set-Tweak 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced' 'ShowCopilotButton' 0
+    foreach ($h in 'HKLM:\SOFTWARE\Policies\Microsoft\Windows\WindowsAI', 'HKCU:\Software\Policies\Microsoft\Windows\WindowsAI') {
+        Set-Tweak $h 'DisableAIDataAnalysis' 1
+        Set-Tweak $h 'TurnOffSavingSnapshots' 1
+        Set-Tweak $h 'DisableClickToDo' 1
+    }
+    Set-Tweak 'HKLM:\SOFTWARE\Policies\Microsoft\Windows\WindowsAI' 'AllowRecallEnablement' 0
+    Ok "Copilot, Recall and Click to Do off"
 }
 if (Use 'privacy.widgets') {
     Set-Tweak 'HKLM:\SOFTWARE\Policies\Microsoft\Dsh' 'AllowNewsAndInterests' 0
     Set-Tweak 'HKLM:\SOFTWARE\Policies\Microsoft\Windows\Windows Feeds' 'EnableFeeds' 0
-    Ok "widgets and news off"
+    Set-Tweak 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Feeds' 'ShellFeedsTaskbarViewMode' 2
+    Set-Tweak 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Policies\Explorer' 'HideSCAMeetNow' 1
+    Ok "widgets, news and Meet Now off"
+}
+if (Use 'privacy.search') {
+    $ws = 'HKLM:\SOFTWARE\Policies\Microsoft\Windows\Windows Search'
+    foreach ($n in 'AllowCortana','AllowCloudSearch','AllowCortanaAboveLock','AllowSearchToUseLocation','ConnectedSearchUseWeb') { Set-Tweak $ws $n 0 }
+    Set-Tweak 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Search' 'CortanaConsent' 0
+    Set-Tweak 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Search' 'BingSearchEnabled' 0
+    Set-Tweak 'HKCU:\Software\Policies\Microsoft\Windows\Explorer' 'DisableSearchBoxSuggestions' 1
+    Ok "Start search: local only (no Bing, no Cortana)"
+}
+if (Use 'privacy.autologger') {
+    foreach ($l in 'AppModel','Cellcore','CloudExperienceHostOobe','DataMarket','DiagLog','LwtNetLog','SQMLogger','WdiContextLog','WiFiSession') {
+        Try-Tweak "HKLM:\SYSTEM\CurrentControlSet\Control\WMI\Autologger\$l" 'Start' 0
+    }
+    Ok "background diagnostic loggers off"
+}
+if (Use 'privacy.location') {
+    Set-Tweak 'HKLM:\SOFTWARE\Policies\Microsoft\Windows\LocationAndSensors' 'DisableLocation' 1
+    Set-Tweak 'HKLM:\SOFTWARE\Policies\Microsoft\Windows\LocationAndSensors' 'DisableSensors' 1
+    Set-Tweak 'HKLM:\SYSTEM\Maps' 'AutoUpdateEnabled' 0
+    Set-Tweak 'HKLM:\Software\Microsoft\Windows\CurrentVersion\CapabilityAccessManager\ConsentStore\location' 'Value' 'Deny' 'String'
+    Set-Tweak 'HKCU:\Software\Microsoft\Windows\CurrentVersion\CapabilityAccessManager\ConsentStore\location' 'Value' 'Deny' 'String'
+    Set-Tweak 'HKLM:\Software\Microsoft\PolicyManager\default\WiFi\AllowWiFiHotSpotReporting' 'Value' 0
+    Set-Tweak 'HKLM:\Software\Microsoft\PolicyManager\default\WiFi\AllowAutoConnectToWiFiSenseHotspots' 'Value' 0
+    Ok "location, sensors and Wi-Fi Sense off"
+}
+if (Use 'privacy.findmydevice') {
+    Set-Tweak 'HKLM:\SOFTWARE\Policies\Microsoft\FindMyDevice' 'AllowFindMyDevice' 0
+    Ok "Find My Device off"
 }
 Save-BK
 
 if (Use 'svc.telemetry') {
     Step "Telemetry services off"
-    foreach ($s in 'DiagTrack','diagnosticshub.standardcollector.service','WerSvc','wercplsupport','PcaSvc') { Set-Svc $s 4 }
+    foreach ($s in 'DiagTrack','diagnosticshub.standardcollector.service','WerSvc','wercplsupport','PcaSvc','DcpSvc') { Set-Svc $s 4 }
     Set-Svc 'dmwappushservice' 3
 }
 if (Use 'svc.misc') {
@@ -579,6 +696,14 @@ if ($onHDD) { Ok "HDD detected: SysMain kept ON (it speeds up HDD systems)" }
 if (Use 'svc.search') {
     if ($onHDD -and $ramGB -le 4) { Set-Svc 'WSearch' 3; Ok "weak HDD PC: search indexer set to manual" }
     else { Ok "search indexer kept (only changed on HDD + 4 GB RAM)" }
+}
+if (Use 'upd.pause') {
+    Set-Tweak 'HKLM:\SOFTWARE\Microsoft\WindowsUpdate\UX\Settings' 'FlightSettingsMaxPauseDays' 0xFFFFFFFF
+    Ok "Windows Update can be paused for longer (Settings -> Windows Update)"
+}
+if (Use 'net.webdav') {
+    Set-Tweak 'HKLM:\SYSTEM\CurrentControlSet\Services\WebClient\Parameters' 'FileSizeLimitInBytes' 0xFFFFFFFF
+    Ok "WebDAV: no 50 MB file size limit"
 }
 if (Use 'tasks.telemetry') {
     Step "Scheduled telemetry tasks (Atlas list)"
@@ -634,6 +759,18 @@ if (Use 'risk.mitigations') {
     Set-Tweak 'HKLM:\SYSTEM\CurrentControlSet\Control\Session Manager\Memory Management' 'FeatureSettingsOverrideMask' 3
     Ok "done (process mitigations/CFG left ON - anticheats like Vanguard need them)"
 }
+if (Use 'risk.services') {
+    Step "Services: rarely used ones -> manual start (WinUtil list)"
+    # Manual = Windows starts them on demand (trigger start); only services currently set to Automatic are changed
+    $manual = 'ALG AppIDSvc AppMgmt AppReadiness AppXSvc Appinfo AxInstSV BDESVC BTAGService Browser CDPSvc COMSysApp CertPropSvc ClipSVC CscService DcpSvc DevQueryBroker DeviceAssociationService DeviceInstall DisplayEnhancementService DmEnrollmentSvc EFS EapHost EntAppSvc FDResPub FrameServer FrameServerMonitor GraphicsPerfSvc HvHost IEEtwCollectorService IKEEXT InstallService InventorySvc IpxlatCfgSvc KtmRm LanmanServer LicenseManager LxpSvc MSDTC MSiSCSI McpManagementService MicrosoftEdgeElevationService MixedRealityOpenXRSvc MsKeyboardFilter NaturalAuthentication NcaSvc NcbService NcdAutoSetup NetSetupSvc NgcCtnrSvc NgcSvc PNRPAutoReg PNRPsvc PcaSvc PeerDistSvc PerfHost PhoneSvc PolicyAgent PrintNotify PushToInstall QWAVE RasAuto RasMan RmSvc RpcLocator SCPolicySvc SCardSvr SDRSVC SEMgrSvc SNMPTRAP SSDPSRV ScDeviceEnum SensorDataService SensorService SensrSvc SessionEnv SharedAccess SharedRealitySvc SmsRouter Spooler SstpSvc StiSvc StorSvc TabletInputService TapiSrv TermService TieringEngineService TimeBroker TimeBrokerSvc TokenBroker TroubleshootingSvc UI0Detect UmRdpService UsoSvc VGAuthService VMTools VSS VacSvc W32Time WEPHOSTSVC WFDSConMgrSvc WMPNetworkSvc WManSvc WPDBusEnum WSearch WaaSMedicSvc WalletService WarpJITSvc WbioSrvc WcsPlugInService WdiServiceHost WdiSystemHost WebClient Wecsvc WerSvc WiaRpc WinHttpAutoProxySvc WinRM WpcMonSvc WpnService XblAuthManager XblGameSave XboxGipSvc XboxNetApiSvc autotimesvc bthserv camsvc cloudidsvc dcsvc defragsvc diagnosticshub.standardcollector.service diagsvc dmwappushservice dot3svc edgeupdate edgeupdatem embeddedmode fdPHost fhsvc hidserv icssvc lfsvc lltdsvc lmhosts msiserver netprofm p2pimsvc p2psvc perceptionsimulation pla seclogon smphost spectrum svsvc swprv upnphost vds vm3dservice vmicguestinterface vmicheartbeat vmickvpexchange vmicrdv vmicshutdown vmictimesync vmicvmsession vmicvss vmvss wbengine wcncsvc webthreatdefsvc wercplsupport wisvc wlidsvc wlpasvc wmiApSrv workfolderssvc wuauserv' -split ' '
+    $n = 0
+    foreach ($s in $manual) {
+        $p = "HKLM:\SYSTEM\CurrentControlSet\Services\$s"
+        if ((Test-Path $p) -and (Get-ItemProperty $p).Start -eq 2) { Try-Tweak $p 'Start' 3; $n++ }
+    }
+    foreach ($s in 'AJRouter','AppVClient','AssignedAccessManagerSvc','DialogBlockingService','Fax','HomeGroupListener','HomeGroupProvider','NetTcpPortSharing','RemoteAccess','RemoteRegistry','RetailDemo','UevAgentService','shpamsvc') { Set-Svc $s 4 }
+    Ok "$n automatic service(s) switched to manual (start on demand)"
+}
 Save-BK
 
 # =====================================================================
@@ -675,11 +812,6 @@ if ((Use 'soft.nvidia') -and $hasNV) {
             Misc-Once 'NvidiaProfile' $true
             foreach ($s in $NvMax) { Ok $s[0] }
         } else { Warn "download failed (no internet / GitHub blocked?) - get it from github.com/Orbmu2k/nvidiaProfileInspector" }
-}
-if (Use 'soft.duck') {
-    Step "optimizerDuck (download only, run it yourself later)"
-    $duck = Join-Path $PSScriptRoot 'Get-OptimizerDuck.ps1'
-    if (Test-Path $duck) { try { & $duck -NoLaunch } catch { Warn "optimizerDuck: $($_.Exception.Message)" } } else { Warn "Get-OptimizerDuck.ps1 not found next to this script - skip" }
 }
 Save-BK
 

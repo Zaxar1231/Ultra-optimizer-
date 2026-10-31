@@ -289,9 +289,10 @@ class MainUi
         root = (FrameworkElement)Program.LoadXaml("ui/MainWindow.xaml");
         iconFont = (FontFamily)Application.Current.FindResource("IconFont");
         textFont = (FontFamily)Application.Current.FindResource("TextFont");
-        foreach (var p in new[] { "PageHome", "PageOptimize", "PageBench", "PageTools", "PageLog", "PageAbout" }) pages[p] = E<FrameworkElement>(p);
+        foreach (var p in new[] { "PageHome", "PageOptimize", "PageCustomize", "PageBench", "PageTools", "PageLog", "PageAbout" }) pages[p] = E<FrameworkElement>(p);
         Wire();
         BuildTweaks();
+        BuildCustomize();
         RefreshBench(Benchmark.Load());
         FillInfo(null);
         RefreshStatus();
@@ -375,7 +376,7 @@ class MainUi
 
     void Wire()
     {
-        foreach (var pair in new[] { new[] { "NavHome", "PageHome" }, new[] { "NavOptimize", "PageOptimize" }, new[] { "NavBench", "PageBench" }, new[] { "NavTools", "PageTools" },
+        foreach (var pair in new[] { new[] { "NavHome", "PageHome" }, new[] { "NavOptimize", "PageOptimize" }, new[] { "NavCustomize", "PageCustomize" }, new[] { "NavBench", "PageBench" }, new[] { "NavTools", "PageTools" },
                                      new[] { "NavLog", "PageLog" }, new[] { "NavAbout", "PageAbout" } })
         {
             string page = pair[1];
@@ -398,8 +399,16 @@ class MainUi
         Click("ToolReport", () => RunJob("Отчёт о ПК", "PC-Info-Mail.ps1", "-NoMail",
             code => Snack(code == 0 ? "Отчёт открыт в браузере" : "Не удалось собрать отчёт — подробности в журнале")));
         Click("ToolReportSend", () => Program.RunConsole("PC-Info-Mail.ps1", ""));
-        Click("ToolDuck", () => RunJob("optimizerDuck", "Get-OptimizerDuck.ps1", "", null));
-        Click("ToolDuckPage", () => Program.Open("https://github.com/itsfatduck/optimizerDuck"));
+        Click("ToolClean", () => Dialog("\uE74D", "Почистить систему?",
+            "Удалятся временные файлы, старые компоненты обновлений Windows, кэш DNS; для SSD выполнится TRIM. Личные файлы и корзина не трогаются.",
+            "Очистить", () => RunJob("Очистка", "Ultimate-Optimizer.ps1", "-Yes -NoRestorePoint -Only clean.temp", null), false));
+        Click("ToolCleanMgr", () => Program.Open("cleanmgr.exe"));
+        Click("CzRestartExplorer", () =>
+        {
+            E<Border>("CzBanner").Visibility = Visibility.Collapsed;
+            ThreadPool.QueueUserWorkItem(_ => Customize.RestartExplorer());
+            Snack("Проводник перезапускается…");
+        });
         Click("ToolLogs", () => OpenFolder(Program.DataDir));
         Click("ToolTools", () => OpenFolder(Path.Combine(Environment.GetEnvironmentVariable("SystemDrive") + "\\", "Tools")));
 
@@ -462,6 +471,7 @@ class MainUi
 
     void ShowPage(string name)
     {
+        if (name == "PageCustomize" && czGroups != null && !screenshotMode) RefreshCustomize();
         foreach (var kv in pages) kv.Value.Visibility = kv.Key == name ? Visibility.Visible : Visibility.Collapsed;
         var p = pages[name];
         if (screenshotMode) return;
@@ -632,6 +642,103 @@ class MainUi
         outer.Children.Add(body);
         card.Child = outer;
         return card;
+    }
+
+    // ================================================================== customize (instant Windows settings)
+    List<CzGroup> czGroups;
+    readonly List<KeyValuePair<CzItem, CheckBox>> czBoxes = new List<KeyValuePair<CzItem, CheckBox>>();
+    bool czLoading;
+
+    void BuildCustomize()
+    {
+        czGroups = Customize.Load();
+        int build = Program.WindowsBuild();
+        bool nvidia = Registry.LocalMachine.OpenSubKey(@"SOFTWARE\NVIDIA Corporation\Global") != null;
+        var host = E<StackPanel>("CzGroups");
+        bool first = true;
+        foreach (var g in czGroups)
+        {
+            var items = g.Items.Where(i => Customize.Applicable(i, build, nvidia)).ToList();
+            if (items.Count == 0) continue;
+            var card = new Border { Style = (Style)Res("OutlinedCard"), Padding = new Thickness(0), Margin = new Thickness(0, 0, 0, 12) };
+            var outer = new StackPanel();
+            var header = new DockPanel { Background = Brushes.Transparent, Cursor = Cursors.Hand, Margin = new Thickness(20, 14, 18, 14) };
+            var chevron = new TextBlock { FontFamily = iconFont, FontSize = 14, VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(14, 0, 0, 0) };
+            chevron.SetResourceReference(TextBlock.ForegroundProperty, "OnSurfaceVariant");
+            DockPanel.SetDock(chevron, Dock.Right);
+            var count = new TextBlock { FontSize = 13, VerticalAlignment = VerticalAlignment.Center, Text = items.Count + " настроек" };
+            count.SetResourceReference(TextBlock.ForegroundProperty, "OnSurfaceVariant");
+            DockPanel.SetDock(count, Dock.Right);
+            var circle = new Border { Width = 36, Height = 36, CornerRadius = new CornerRadius(18), Margin = new Thickness(0, 0, 14, 0) };
+            circle.SetResourceReference(Border.BackgroundProperty, "TertiaryContainer");
+            var icon = new TextBlock { Text = g.Icon, FontFamily = iconFont, FontSize = 16, HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Center };
+            icon.SetResourceReference(TextBlock.ForegroundProperty, "OnTertiaryContainer");
+            circle.Child = icon;
+            DockPanel.SetDock(circle, Dock.Left);
+            var title = new TextBlock { Text = g.Title, FontSize = 16, FontWeight = FontWeights.SemiBold, VerticalAlignment = VerticalAlignment.Center };
+            title.SetResourceReference(TextBlock.ForegroundProperty, "OnSurface");
+            header.Children.Add(chevron);
+            header.Children.Add(count);
+            header.Children.Add(circle);
+            header.Children.Add(title);
+            var body = new StackPanel();
+            foreach (var it in items)
+            {
+                body.Children.Add(new Border { Style = (Style)Res("Divider") });
+                var cb = new CheckBox { Style = (Style)Res("Switch") };
+                var sp = new StackPanel();
+                sp.Children.Add(new TextBlock { Text = it.Title, Style = (Style)Res("BodyLarge") });
+                string note = it.Restart == "reboot" ? "Применится после перезагрузки." : it.Restart == "explorer" ? "" : "";
+                string desc = ((it.Desc ?? "") + (note.Length > 0 ? " " + note : "")).Trim();
+                if (desc.Length > 0) sp.Children.Add(new TextBlock { Text = desc, Style = (Style)Res("BodyMedium"), Margin = new Thickness(0, 2, 0, 0) });
+                cb.Content = sp;
+                var item = it;
+                RoutedEventHandler h = (s, e) => CzToggled(item, cb);
+                cb.Checked += h;
+                cb.Unchecked += h;
+                czBoxes.Add(new KeyValuePair<CzItem, CheckBox>(it, cb));
+                body.Children.Add(cb);
+            }
+            bool open = first;
+            first = false;
+            Action<bool> expand = o => { body.Visibility = o ? Visibility.Visible : Visibility.Collapsed; chevron.Text = o ? "" : ""; };
+            expand(open);
+            header.MouseLeftButtonUp += delegate { expand(body.Visibility != Visibility.Visible); };
+            outer.Children.Add(header);
+            outer.Children.Add(body);
+            card.Child = outer;
+            host.Children.Add(card);
+        }
+        RefreshCustomize();
+    }
+
+    /// Re-read every switch from the registry (settings may have been changed elsewhere).
+    void RefreshCustomize()
+    {
+        czLoading = true;
+        foreach (var kv in czBoxes)
+        {
+            try { kv.Value.IsChecked = Customize.Get(kv.Key); kv.Value.IsEnabled = true; }
+            catch { kv.Value.IsEnabled = false; }
+        }
+        czLoading = false;
+    }
+
+    void CzToggled(CzItem it, CheckBox cb)
+    {
+        if (czLoading) return;
+        bool on = cb.IsChecked == true;
+        try { Customize.Set(it, on); }
+        catch (Exception e)
+        {
+            czLoading = true;
+            cb.IsChecked = !on;
+            czLoading = false;
+            Snack("Не удалось изменить «" + it.Title + "»: " + e.Message);
+            return;
+        }
+        if (it.Restart == "explorer") E<Border>("CzBanner").Visibility = Visibility.Visible;
+        else if (it.Restart == "reboot") Snack("«" + it.Title + "» — применится после перезагрузки");
     }
 
     // ================================================================== benchmark
@@ -1130,7 +1237,7 @@ class MainUi
     void SetBusy(bool b)
     {
         busy = b;
-        foreach (var n in new[] { "FabOptimize", "HomeOptimize", "OptRun", "ToolRepair", "ToolNet", "ToolReport", "ToolDuck", "BenchRun", "TweaksReset" })
+        foreach (var n in new[] { "FabOptimize", "HomeOptimize", "OptRun", "ToolRepair", "ToolNet", "ToolReport", "ToolClean", "BenchRun", "TweaksReset" })
             E<Button>(n).IsEnabled = !b;
         if (b) { E<Button>("HomeUndo").IsEnabled = false; E<Button>("OptUndo").IsEnabled = false; }
         var host = E<Grid>("ProgressHost");
@@ -1418,6 +1525,7 @@ class MainUi
                 Navigate("NavOptimize"); Shot(dir, "optimize" + sfx);
                 groupExpanders[0](false);
                 Navigate("NavBench"); RefreshBench(DemoBench()); Shot(dir, "bench" + sfx);
+                Navigate("NavCustomize"); Shot(dir, "customize" + sfx);
                 Navigate("NavTools"); Shot(dir, "tools" + sfx);
 
                 Navigate("NavLog");

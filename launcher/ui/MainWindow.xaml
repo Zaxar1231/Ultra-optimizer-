@@ -15,9 +15,10 @@
                 ToolTip="Светлая / тёмная тема" Margin="0,0,0,20"/>
         <StackPanel Margin="0,20,0,0">
             <Button x:Name="FabOptimize" Style="{StaticResource Fab}" Tag="&#xE945;" ToolTip="Оптимизировать"
-                    HorizontalAlignment="Center" Margin="0,0,0,32"/>
+                    HorizontalAlignment="Center" Margin="0,0,0,24"/>
             <RadioButton x:Name="NavHome" GroupName="nav" Style="{StaticResource NavItem}" Tag="&#xE80F;" Content="Главная" IsChecked="True"/>
             <RadioButton x:Name="NavOptimize" GroupName="nav" Style="{StaticResource NavItem}" Tag="&#xE945;" Content="Оптимизация"/>
+            <RadioButton x:Name="NavCustomize" GroupName="nav" Style="{StaticResource NavItem}" Tag="&#xE771;" Content="Настройка"/>
             <RadioButton x:Name="NavBench" GroupName="nav" Style="{StaticResource NavItem}" Tag="&#xE9D9;" Content="Замер"/>
             <RadioButton x:Name="NavTools" GroupName="nav" Style="{StaticResource NavItem}" Tag="&#xE90F;" Content="Инструменты"/>
             <RadioButton x:Name="NavLog" GroupName="nav" Style="{StaticResource NavItem}" Tag="&#xE81C;" Content="Журнал"/>
@@ -110,6 +111,26 @@
                 </StackPanel>
             </ScrollViewer>
 
+            <!-- ============================================================ CUSTOMIZE -->
+            <ScrollViewer x:Name="PageCustomize" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled" Visibility="Collapsed">
+                <StackPanel Margin="36,32,36,36" MaxWidth="1040">
+                    <TextBlock Style="{StaticResource HeadlineMedium}" Text="Настройка Windows"/>
+                    <TextBlock Style="{StaticResource BodyMedium}" FontSize="15" Margin="0,6,0,20"
+                               Text="Переключатели показывают текущее состояние и применяются сразу. Вернуть — тем же переключателем. Эти настройки не входят в бэкап оптимизации."/>
+                    <Border x:Name="CzBanner" Visibility="Collapsed" CornerRadius="20" Background="{DynamicResource SecondaryContainer}" Padding="20,12" Margin="0,0,0,16">
+                        <DockPanel>
+                            <Button x:Name="CzRestartExplorer" DockPanel.Dock="Right" Style="{StaticResource FilledButton}" Tag="&#xE72C;" Content="Перезапустить Проводник" Margin="12,0,0,0"/>
+                            <TextBlock Style="{StaticResource Icon}" DockPanel.Dock="Left" Text="&#xE946;" FontSize="18" Margin="0,0,12,0" Foreground="{DynamicResource OnSecondaryContainer}"/>
+                            <TextBlock VerticalAlignment="Center" TextWrapping="Wrap" Foreground="{DynamicResource OnSecondaryContainer}"
+                                       Text="Часть изменений появится после перезапуска Проводника (панель задач и окна папок мигнут на секунду)."/>
+                        </DockPanel>
+                    </Border>
+                    <StackPanel x:Name="CzGroups"/>
+                    <TextBlock Style="{StaticResource BodyMedium}" FontSize="12" Margin="4,8,0,0"
+                               Text="Набор настроек основан на разделе Customize проекта optimizerDuck (GPL-3.0), реализация своя."/>
+                </StackPanel>
+            </ScrollViewer>
+
             <!-- ============================================================ BENCHMARK -->
             <ScrollViewer x:Name="PageBench" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled" Visibility="Collapsed">
                 <StackPanel Margin="36,32,36,36" MaxWidth="1040">
@@ -187,14 +208,14 @@
                         <Border Style="{StaticResource OutlinedCard}" Margin="0,0,16,16">
                             <DockPanel>
                                 <Border DockPanel.Dock="Top" Width="48" Height="48" CornerRadius="14" Background="{DynamicResource PrimaryContainer}" HorizontalAlignment="Left">
-                                    <TextBlock Style="{StaticResource Icon}" Text="&#xE896;" FontSize="22" Foreground="{DynamicResource OnPrimaryContainer}"/>
+                                    <TextBlock Style="{StaticResource Icon}" Text="&#xE74D;" FontSize="22" Foreground="{DynamicResource OnPrimaryContainer}"/>
                                 </Border>
-                                <TextBlock DockPanel.Dock="Top" Style="{StaticResource TitleLarge}" Text="optimizerDuck" Margin="0,16,0,6"/>
+                                <TextBlock DockPanel.Dock="Top" Style="{StaticResource TitleLarge}" Text="Очистка" Margin="0,16,0,6"/>
                                 <TextBlock DockPanel.Dock="Top" Style="{StaticResource BodyMedium}" Margin="0,0,0,16"
-                                           Text="Open-source оптимизатор с графическим интерфейсом (GPL-3.0, itsfatduck). Качается свежий релиз, SHA-256 проверяется."/>
+                                           Text="Временные файлы, старые компоненты обновлений Windows, TRIM для SSD и кэш DNS. Сколько освободилось — видно в «Замере»."/>
                                 <WrapPanel VerticalAlignment="Bottom">
-                                    <Button x:Name="ToolDuck" Style="{StaticResource TonalButton}" Tag="&#xE896;" Content="Скачать и запустить" Margin="0,0,8,8"/>
-                                    <Button x:Name="ToolDuckPage" Style="{StaticResource TextButton}" Content="Страница проекта" Margin="0,0,8,8"/>
+                                    <Button x:Name="ToolClean" Style="{StaticResource TonalButton}" Tag="&#xE74D;" Content="Очистить" Margin="0,0,8,8"/>
+                                    <Button x:Name="ToolCleanMgr" Style="{StaticResource TextButton}" Content="Очистка диска Windows" Margin="0,0,8,8"/>
                                 </WrapPanel>
                             </DockPanel>
                         </Border>
@@ -314,7 +335,7 @@
                     <TextBlock Style="{StaticResource TitleSmall}" Text="Ссылки"/>
                     <WrapPanel>
                         <Button x:Name="LinkRepo" Style="{StaticResource OutlinedButton}" Tag="&#xE774;" Content="GitHub проекта" Margin="0,0,8,8"/>
-                        <Button x:Name="LinkDuck" Style="{StaticResource OutlinedButton}" Tag="&#xE774;" Content="optimizerDuck" Margin="0,0,8,8"/>
+                        <Button x:Name="LinkDuck" Style="{StaticResource OutlinedButton}" Tag="&#xE774;" Content="optimizerDuck (идеи твиков)" Margin="0,0,8,8"/>
                         <Button x:Name="LinkAtlas" Style="{StaticResource OutlinedButton}" Tag="&#xE774;" Content="AtlasOS" Margin="0,0,8,8"/>
                     </WrapPanel>
 

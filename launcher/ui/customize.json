@@ -1,0 +1,126 @@
+{
+  "groups": [
+    {
+      "id": "desktop", "title": "Рабочий стол", "icon": "E7F4",
+      "items": [
+        { "id": "ThisPc", "title": "Значок «Этот компьютер»", "restart": "explorer",
+          "values": [ { "path": "HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Explorer\\HideDesktopIcons\\NewStartPanel", "name": "{20D04FE0-3AEA-1069-A2D8-08002B30309D}", "on": [0], "off": 1, "def": 1 } ] },
+        { "id": "RecycleBin", "title": "Значок «Корзина»", "restart": "explorer",
+          "values": [ { "path": "HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Explorer\\HideDesktopIcons\\NewStartPanel", "name": "{645FF040-5081-101B-9F08-00AA002F954E}", "on": [0], "off": 1, "def": 0 } ] },
+        { "id": "UserFiles", "title": "Папка пользователя", "restart": "explorer",
+          "values": [ { "path": "HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Explorer\\HideDesktopIcons\\NewStartPanel", "name": "{59031a47-3f72-44a7-89c5-5595fe6b30ee}", "on": [0], "off": 1, "def": 1 } ] },
+        { "id": "Network", "title": "Значок «Сеть»", "restart": "explorer",
+          "values": [ { "path": "HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Explorer\\HideDesktopIcons\\NewStartPanel", "name": "{F02C1A0D-BE21-4350-88B0-7367FC96EF3C}", "on": [0], "off": 1, "def": 1 } ] },
+        { "id": "ControlPanel", "title": "Панель управления", "restart": "explorer",
+          "values": [ { "path": "HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Explorer\\HideDesktopIcons\\NewStartPanel", "name": "{5399E694-6CE5-4D6C-8FCE-1D8870FDCBA0}", "on": [0], "off": 1, "def": 1 } ] },
+        { "id": "DesktopIcons", "title": "Показывать значки на рабочем столе", "restart": "explorer",
+          "values": [ { "path": "HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Explorer\\Advanced", "name": "HideIcons", "on": [0], "off": 1, "def": 0 } ] }
+      ]
+    },
+    {
+      "id": "taskbar", "title": "Панель задач и «Пуск»", "icon": "E7C4",
+      "items": [
+        { "id": "TaskbarCenter", "title": "Значки по центру", "desc": "Выключи, чтобы кнопка «Пуск» была слева, как в Windows 10.", "win11": true, "restart": "explorer",
+          "values": [ { "path": "HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Explorer\\Advanced", "name": "TaskbarAl", "on": [1], "off": 0, "def": 1 } ] },
+        { "id": "Combine", "title": "Группировать кнопки окон", "restart": "explorer",
+          "values": [ { "path": "HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Explorer\\Advanced", "name": "TaskbarGlomLevel", "on": [0], "off": 2, "def": 0 } ] },
+        { "id": "Search", "title": "Поиск на панели задач", "desc": "Значок поиска рядом с «Пуском». Win+S работает в любом случае.", "restart": "explorer",
+          "values": [ { "path": "HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Search", "name": "SearchboxTaskbarMode", "on": [1, 2, 3], "off": 0, "def": 2 } ] },
+        { "id": "TaskView", "title": "Кнопка «Представление задач»", "restart": "explorer",
+          "values": [ { "path": "HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Explorer\\Advanced", "name": "ShowTaskViewButton", "on": [1], "off": 0, "def": 1 } ] },
+        { "id": "Widgets", "title": "Виджеты и новости", "restart": "explorer",
+          "values": [ { "path": "HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Explorer\\Advanced", "name": "TaskbarDa", "on": [1], "off": 0, "def": 1 },
+                      { "path": "HKLM\\SOFTWARE\\Policies\\Microsoft\\Windows\\Windows Feeds", "name": "EnableFeeds", "on": [1], "off": 0, "def": 1, "optional": true },
+                      { "path": "HKLM\\SOFTWARE\\Policies\\Microsoft\\Dsh", "name": "AllowNewsAndInterests", "on": [1], "off": 0, "def": 1, "optional": true } ] },
+        { "id": "EndTask", "title": "«Завершить задачу» по правому клику", "desc": "Закрыть зависшую программу прямо с панели задач, без диспетчера задач.", "win11": true, "restart": "explorer",
+          "values": [ { "path": "HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Explorer\\Advanced\\TaskbarDeveloperSettings", "name": "TaskbarEndTask", "on": [1], "off": 0, "def": 0 } ] },
+        { "id": "LastActive", "title": "Клик по значку открывает последнее окно", "desc": "Вместо списка миниатюр сразу переключает на последнее активное окно программы.", "restart": "explorer",
+          "values": [ { "path": "HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Explorer\\Advanced", "name": "LastActiveClick", "on": [1], "off": 0, "def": 0 } ] },
+        { "id": "Seconds", "title": "Секунды в часах", "restart": "explorer",
+          "values": [ { "path": "HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Explorer\\Advanced", "name": "ShowSecondsInSystemClock", "on": [1], "off": 0, "def": 0 } ] },
+        { "id": "BingSearch", "title": "Bing в поиске «Пуска»", "desc": "Веб-результаты и подсказки из интернета при поиске.", "restart": "explorer",
+          "values": [ { "path": "HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Search", "name": "BingSearchEnabled", "on": [1], "off": 0, "def": 1 },
+                      { "path": "HKCU\\Software\\Policies\\Microsoft\\Windows\\Explorer", "name": "DisableSearchBoxSuggestions", "on": [0], "off": 1, "def": 0 } ] }
+      ]
+    },
+    {
+      "id": "explorer", "title": "Проводник", "icon": "E8B7",
+      "items": [
+        { "id": "FileExt", "title": "Показывать расширения файлов", "desc": "Видно, что «фото.jpg.exe» на самом деле программа.", "restart": "explorer",
+          "values": [ { "path": "HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Explorer\\Advanced", "name": "HideFileExt", "on": [0], "off": 1, "def": 1 } ] },
+        { "id": "Hidden", "title": "Показывать скрытые файлы", "restart": "explorer",
+          "values": [ { "path": "HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Explorer\\Advanced", "name": "Hidden", "on": [1], "off": 2, "def": 2 } ] },
+        { "id": "ThisPcStart", "title": "Открывать «Этот компьютер»", "desc": "Проводник открывается с дисками, а не с «Главной».", "restart": "explorer",
+          "values": [ { "path": "HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Explorer\\Advanced", "name": "LaunchTo", "on": [1], "off": 2, "def": 2 } ] },
+        { "id": "ClassicMenu", "title": "Классическое контекстное меню", "desc": "Полное меню по правому клику сразу, без «Показать дополнительные параметры».", "win11": true, "restart": "explorer", "special": "classicmenu" },
+        { "id": "Checkboxes", "title": "Флажки для выбора файлов", "restart": "explorer",
+          "values": [ { "path": "HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Explorer\\Advanced", "name": "AutoCheckSelect", "on": [1], "off": 0, "def": 0 } ] },
+        { "id": "Compact", "title": "Компактный вид", "desc": "Меньше отступов между файлами.", "restart": "explorer",
+          "values": [ { "path": "HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Explorer\\Advanced", "name": "UseCompactMode", "on": [1], "off": 0, "def": 0 } ] },
+        { "id": "SyncAds", "title": "Реклама OneDrive и Microsoft 365", "desc": "Уведомления поставщиков синхронизации в Проводнике.", "restart": "explorer",
+          "values": [ { "path": "HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Explorer\\Advanced", "name": "ShowSyncProviderNotifications", "on": [1], "off": 0, "def": 1 } ] }
+      ]
+    },
+    {
+      "id": "system", "title": "Система", "icon": "E770",
+      "items": [
+        { "id": "DarkMode", "title": "Тёмная тема Windows", "restart": "theme",
+          "values": [ { "path": "HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Themes\\Personalize", "name": "AppsUseLightTheme", "on": [0], "off": 1, "def": 1 },
+                      { "path": "HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Themes\\Personalize", "name": "SystemUsesLightTheme", "on": [0], "off": 1, "def": 1 } ] },
+        { "id": "Toasts", "title": "Уведомления", "restart": "none",
+          "values": [ { "path": "HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\PushNotifications", "name": "ToastEnabled", "on": [1], "off": 0, "def": 1 },
+                      { "path": "HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\PushNotifications", "name": "LockScreenToastEnabled", "on": [1], "off": 0, "def": 1, "optional": true } ] },
+        { "id": "Suggestions", "title": "Советы и предложения Windows", "restart": "none",
+          "values": [ { "path": "HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\ContentDeliveryManager", "name": "SystemPaneSuggestionsEnabled", "on": [1], "off": 0, "def": 1 } ] },
+        { "id": "Clipboard", "title": "Журнал буфера обмена (Win+V)", "restart": "none",
+          "values": [ { "path": "HKCU\\Software\\Microsoft\\Clipboard", "name": "EnableClipboardHistory", "on": [1], "off": 0, "def": 0 } ] },
+        { "id": "Shake", "title": "Свернуть окна встряхиванием", "desc": "Встряхни окно за заголовок, чтобы свернуть все остальные.", "restart": "explorer",
+          "values": [ { "path": "HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Explorer\\Advanced", "name": "DisallowShaking", "on": [0], "off": 1, "def": 0 } ] },
+        { "id": "SnapFlyout", "title": "Макеты окон при наведении на «Развернуть»", "win11": true, "restart": "explorer",
+          "values": [ { "path": "HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Explorer\\Advanced", "name": "EnableSnapAssistFlyout", "on": [1], "off": 0, "def": 1 } ] },
+        { "id": "NumLock", "title": "NumLock включён при загрузке", "restart": "reboot",
+          "values": [ { "path": "HKU\\.DEFAULT\\Control Panel\\Keyboard", "name": "InitialKeyboardIndicators", "type": "string", "on": ["2"], "off": "0", "def": "0" },
+                      { "path": "HKCU\\Control Panel\\Keyboard", "name": "InitialKeyboardIndicators", "type": "string", "on": ["2"], "off": "0", "def": "0", "optional": true } ] },
+        { "id": "Verbose", "title": "Подробные сообщения при входе и выключении", "desc": "Видно, на какой службе зависает загрузка или выключение.", "restart": "reboot",
+          "values": [ { "path": "HKLM\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Policies\\System", "name": "VerboseStatus", "on": [1], "off": 0, "def": 0 } ] },
+        { "id": "LongPaths", "title": "Длинные пути к файлам", "desc": "Снимает ограничение в 260 символов (нужно для некоторых игр, модов и dev-инструментов).", "restart": "none",
+          "values": [ { "path": "HKLM\\SYSTEM\\CurrentControlSet\\Control\\FileSystem", "name": "LongPathsEnabled", "on": [1], "off": 0, "def": 0 } ] },
+        { "id": "DevMode", "title": "Режим разработчика", "desc": "Установка приложений из любых источников и символические ссылки без прав администратора.", "restart": "none",
+          "values": [ { "path": "HKLM\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\AppModelUnlock", "name": "AllowDevelopmentWithoutDevLicense", "on": [1], "off": 0, "def": 0 },
+                      { "path": "HKLM\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\AppModelUnlock", "name": "AllowAllTrustedApps", "on": [1], "off": 0, "def": 0, "optional": true } ] },
+        { "id": "UtcClock", "title": "Аппаратные часы в UTC", "desc": "Для двойной загрузки с Linux: время не будет сбиваться при переключении систем.", "restart": "reboot",
+          "values": [ { "path": "HKLM\\SYSTEM\\CurrentControlSet\\Control\\TimeZoneInformation", "name": "RealTimeIsUniversal", "on": [1], "off": 0, "def": 0 } ] },
+        { "id": "SmartDns", "title": "Без Smart Name Resolution", "desc": "Windows не рассылает DNS-запросы на все сетевые адаптеры — нет утечек DNS мимо VPN.", "restart": "none",
+          "values": [ { "path": "HKLM\\SOFTWARE\\Policies\\Microsoft\\Windows NT\\DNSClient", "name": "DisableSmartNameResolution", "on": [1], "off": 0, "def": 0 } ] }
+      ]
+    },
+    {
+      "id": "gaming", "title": "Игры", "icon": "E7FC",
+      "items": [
+        { "id": "GameMode", "title": "Игровой режим", "restart": "none",
+          "values": [ { "path": "HKCU\\Software\\Microsoft\\GameBar", "name": "AllowAutoGameMode", "on": [1], "off": 0, "def": 1 },
+                      { "path": "HKCU\\Software\\Microsoft\\GameBar", "name": "AutoGameModeEnabled", "on": [1], "off": 0, "def": 1 } ] },
+        { "id": "GameBar", "title": "Xbox Game Bar (Win+G)", "restart": "none",
+          "values": [ { "path": "HKCU\\System\\GameConfigStore", "name": "GameBarEnabled", "on": [1], "off": 0, "def": 1 },
+                      { "path": "HKCU\\Software\\Microsoft\\GameBar", "name": "UseNexusForGameBarEnabled", "on": [1], "off": 0, "def": 1, "optional": true } ] },
+        { "id": "Recording", "title": "Фоновая запись игр (Game DVR)", "desc": "Постоянная запись последних минут игры. Отнимает FPS.", "restart": "none",
+          "values": [ { "path": "HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\GameDVR", "name": "AppCaptureEnabled", "on": [1], "off": 0, "def": 1 },
+                      { "path": "HKCU\\System\\GameConfigStore", "name": "GameDVR_Enabled", "on": [1], "off": 0, "def": 1 },
+                      { "path": "HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\GameDVR", "name": "HistoricalCaptureEnabled", "on": [1], "off": 0, "def": 0, "optional": true } ] },
+        { "id": "Fso", "title": "Оптимизация во весь экран", "desc": "Выключи, если в старых играх есть статтеры или задержка ввода в полноэкранном режиме.", "restart": "none",
+          "values": [ { "path": "HKCU\\System\\GameConfigStore", "name": "GameDVR_FSEBehaviorMode", "on": [0], "off": 2, "def": 0 },
+                      { "path": "HKCU\\System\\GameConfigStore", "name": "GameDVR_FSEBehavior", "on": [0], "off": 2, "def": 0, "optional": true },
+                      { "path": "HKCU\\System\\GameConfigStore", "name": "GameDVR_HonorUserFSEBehaviorMode", "on": [0], "off": 1, "def": 0, "optional": true },
+                      { "path": "HKCU\\System\\GameConfigStore", "name": "GameDVR_DXGIHonorFSEWindowsCompatible", "on": [0], "off": 1, "def": 0, "optional": true } ] },
+        { "id": "Hags", "title": "Аппаратное планирование GPU", "restart": "reboot",
+          "values": [ { "path": "HKLM\\SYSTEM\\CurrentControlSet\\Control\\GraphicsDrivers", "name": "HwSchMode", "on": [2], "off": 1, "def": 1 } ] },
+        { "id": "MouseAccel", "title": "Акселерация мыши", "desc": "«Повышенная точность указателя». Для шутеров лучше выключить.", "restart": "mouse",
+          "values": [ { "path": "HKCU\\Control Panel\\Mouse", "name": "MouseSpeed", "type": "string", "on": ["1", "2"], "off": "0", "def": "1" },
+                      { "path": "HKCU\\Control Panel\\Mouse", "name": "MouseThreshold1", "type": "string", "on": ["6"], "off": "0", "def": "6", "optional": true },
+                      { "path": "HKCU\\Control Panel\\Mouse", "name": "MouseThreshold2", "type": "string", "on": ["10"], "off": "0", "def": "10", "optional": true } ] },
+        { "id": "Dlss", "title": "Индикатор DLSS", "desc": "Показывает в углу экрана, работает ли DLSS и в каком режиме.", "requires": "nvidia", "restart": "none",
+          "values": [ { "path": "HKLM\\SOFTWARE\\NVIDIA Corporation\\Global\\NGXCore", "name": "ShowDlssIndicator", "on": [1024], "off": 0, "def": 0 } ] }
+      ]
+    }
+  ]
+}
