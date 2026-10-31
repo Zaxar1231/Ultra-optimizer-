@@ -1,5 +1,5 @@
 =====================================================================
-        ULTIMATE OPTIMIZER v3.4 — оптимизация уровня AtlasOS
+        ULTIMATE OPTIMIZER v3.5 — оптимизация уровня AtlasOS
             для любого ПК/ноутбука на Windows 10 и 11
 =====================================================================
 
@@ -25,12 +25,10 @@
   2-UNDO-Everything.bat     точный откат всего
   3-Repair-Windows.bat      починка Windows (DISM, SFC, сеть, апдейты)
   4-PC-Info-Report.bat      отчёт о железе на почту / в Telegram
-  5-Get-OptimizerDuck.bat   скачать и запустить optimizerDuck
 
   Ultimate-Optimizer.ps1    сам оптимизатор
   Win11-Repair.ps1          починка
   PC-Info-Mail.ps1          отчёт о компе
-  Get-OptimizerDuck.ps1     загрузчик optimizerDuck
   NVIDIA-MaxPerformance.nip   профиль NVIDIA (скрипт ставит его сам)
   NVIDIA-Driver-Defaults.nip  откат профиля NVIDIA к заводскому
 
@@ -42,7 +40,9 @@
   В окне: «Оптимизировать» → подтвердить → дождаться «Готово» → перезагрузка.
   Новые версии приложение скачивает и ставит само (баннер на главной).
   В приложении: профили (Игры / Ноутбук / Работа / Слабый ПК), переключатель
-  у каждого твика и замер «до» и «после» оптимизации.
+  у каждого твика, замер «до» и «после» оптимизации и экран «Настройка
+  Windows» с ~40 мгновенными переключателями (значки, панель задач,
+  Проводник, тёмная тема, Game Bar и т. п.).
 
   Или через .bat:
   1. Распакуй архив в папку (например C:\Ultimate). Из архива не запускай.
@@ -57,7 +57,6 @@
      .\Ultimate-Optimizer.ps1            с вопросами
      .\Ultimate-Optimizer.ps1 -Yes       без вопросов (рискованное НЕ трогает)
      .\Ultimate-Optimizer.ps1 -NoApps    без скачивания программ
-     .\Ultimate-Optimizer.ps1 -NoDuck    без скачивания optimizerDuck
      .\Ultimate-Optimizer.ps1 -Yes -Only cpu.mmcss,ui.mouse   только выбранные
                                          твики (список ID — в приложении и tweaks.json)
      .\Ultimate-Optimizer.ps1 -Undo      откатить всё
@@ -120,9 +119,6 @@
    - MSI Afterburner (если есть видеокарта NVIDIA/AMD)
    - G-Helper (ASUS) / Legion Toolkit (Lenovo)
    - NVIDIA Profile Inspector → в C:\Tools\nvidiaProfileInspector
-   - optimizerDuck (последний релиз с GitHub, x64/ARM64, проверка
-     SHA-256) → в C:\Tools\optimizerDuck. Только скачивается —
-     запускай сам, когда захочешь (или 5-Get-OptimizerDuck.bat).
    Если winget нет (старая Win10): поставь «Установщик приложений»
    (App Installer) из Microsoft Store и запусти скрипт снова.
 
@@ -162,17 +158,6 @@
 
 
 ---------------------------------------------------------------------
- OPTIMIZERDUCK (5-Get-OptimizerDuck.bat)
----------------------------------------------------------------------
-  Отдельная open-source программа (GPL-3.0, автор itsfatduck) с
-  графическим интерфейсом. Скрипт всегда качает свежую версию с
-  официальной страницы релизов и сверяет контрольную сумму.
-  Ключи: -NoLaunch (только скачать), -Force (скачать заново).
-  Не применяй одни и те же твики двумя программами одновременно —
-  откат Ultimate Optimizer вернёт только свои изменения.
-
-
----------------------------------------------------------------------
  ОТЧЁТ О КОМПЕ (4-PC-Info-Report.bat)
 ---------------------------------------------------------------------
   При первом запуске спросит твой Gmail (отправитель) и куда слать
@@ -202,7 +187,6 @@
  ДРУГИЕ ПРОГРАММЫ (не запускай всё подряд — хватит этого пака)
 =====================================================================
   AtlasOS (полная установка) ..... https://atlasos.net
-  optimizerDuck .................. https://github.com/itsfatduck/optimizerDuck/releases
   Chris Titus WinUtil ............ https://github.com/ChrisTitusTech/winutil
   Win11Debloat ................... https://github.com/Raphire/Win11Debloat
   O&O ShutUp10++ ................. https://www.oo-software.com/en/shutup10

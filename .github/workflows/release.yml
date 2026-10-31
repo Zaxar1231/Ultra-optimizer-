@@ -48,7 +48,7 @@ jobs:
           $notes = if ($m.Success) { $m.Groups[1].Value.Trim() } else { "Ultimate Optimizer v$v" }
           $raw = "https://raw.githubusercontent.com/$env:GITHUB_REPOSITORY/$env:GITHUB_SHA/docs/screenshots"
           if (Test-Path docs/screenshots/home-dark.png) {
-            $notes += "`n`n### Скриншоты`n`n![Главная]($raw/home-dark.png)`n`n| | |`n|---|---|`n| ![Оптимизация]($raw/optimize-light.png) | ![Журнал]($raw/log-dark.png) |`n| ![Профили]($raw/optimize-dark.png) | ![Замер]($raw/bench-light.png) |`n| ![Инструменты]($raw/tools-dark.png) | ![Обновление]($raw/update-light.png) |"
+            $notes += "`n`n### Скриншоты`n`n![Главная]($raw/home-dark.png)`n`n| | |`n|---|---|`n| ![Оптимизация]($raw/optimize-light.png) | ![Журнал]($raw/log-dark.png) |`n| ![Профили]($raw/optimize-dark.png) | ![Замер]($raw/bench-light.png) |`n| ![Настройка Windows]($raw/customize-dark.png) | ![Журнал]($raw/log-dark.png) |`n| ![Инструменты]($raw/tools-dark.png) | ![Обновление]($raw/update-light.png) |"
           }
           $notes += "`n`n---`n**Как запустить:** скачай ``UltimateOptimizer.exe`` → запусти → «Да» в окне UAC. Дальше приложение обновляется само.`nSmartScreen: «Подробнее» → «Выполнить в любом случае» (файл не подписан сертификатом).`nКонтрольные суммы — в ``SHA256SUMS.txt``."
           Set-Content release-notes.md $notes -Encoding UTF8
