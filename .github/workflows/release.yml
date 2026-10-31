@@ -46,7 +46,11 @@ jobs:
           $md = Get-Content CHANGELOG.md -Raw
           $m = [regex]::Match($md, "(?ms)^## v$([regex]::Escape($v))\s*\r?\n(.*?)(?=^## v|\z)")
           $notes = if ($m.Success) { $m.Groups[1].Value.Trim() } else { "Ultimate Optimizer v$v" }
-          $notes += "`n`n---`n**Как запустить:** скачай ``UltimateOptimizer.exe`` → запусти → «Да» в окне UAC → выбери пункт меню.`nSmartScreen: «Подробнее» → «Выполнить в любом случае» (файл не подписан сертификатом).`nКонтрольные суммы — в ``SHA256SUMS.txt``."
+          $raw = "https://raw.githubusercontent.com/$env:GITHUB_REPOSITORY/$env:GITHUB_SHA/docs/screenshots"
+          if (Test-Path docs/screenshots/home-dark.png) {
+            $notes += "`n`n### Скриншоты`n`n![Главная]($raw/home-dark.png)`n`n| | |`n|---|---|`n| ![Оптимизация]($raw/optimize-light.png) | ![Журнал]($raw/log-dark.png) |`n| ![Инструменты]($raw/tools-dark.png) | ![Обновление]($raw/update-light.png) |"
+          }
+          $notes += "`n`n---`n**Как запустить:** скачай ``UltimateOptimizer.exe`` → запусти → «Да» в окне UAC. Дальше приложение обновляется само.`nSmartScreen: «Подробнее» → «Выполнить в любом случае» (файл не подписан сертификатом).`nКонтрольные суммы — в ``SHA256SUMS.txt``."
           Set-Content release-notes.md $notes -Encoding UTF8
 
       - name: Build (Windows PowerShell 5.1 + csc from .NET Framework)
