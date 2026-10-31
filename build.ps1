@@ -46,7 +46,7 @@ $icon = Join-Path $ui 'app.ico'
 $resources  = @(Get-ChildItem $stage -File | ForEach-Object { "-resource:$($_.FullName),app/$($_.Name)" })
 $resources += Get-ChildItem $ui -File | ForEach-Object { "-resource:$($_.FullName),ui/$($_.Name)" }
 $sources = @(Get-ChildItem (Join-Path $root 'launcher') -Filter *.cs | ForEach-Object FullName) + $buildInfo
-$libs = 'mscorlib', 'System', 'System.Core', 'System.Xml', 'System.Xaml', 'System.Management', 'WindowsBase', 'PresentationCore', 'PresentationFramework'
+$libs = 'mscorlib', 'System', 'System.Core', 'System.Xml', 'System.Xaml', 'System.Management', 'System.Web.Extensions', 'WindowsBase', 'PresentationCore', 'PresentationFramework'
 $common = @('-target:winexe', '-platform:anycpu', '-optimize+', '-nologo', "-win32icon:$icon", "-out:$exe")
 
 $csc = $null
@@ -61,7 +61,7 @@ if ($csc) {
         if (-not $p) { throw "reference $l.dll not found in $fx" }
         "-r:$p"
     }
-    & $csc @common -codepage:65001 @refs @resources @sources
+    & $csc @common -codepage:65001 "-win32manifest:$(Join-Path $root 'launcher/app.manifest')" @refs @resources @sources
 } elseif (Get-Command mcs -ErrorAction SilentlyContinue) {
     # Linux check build: compile against the .NET Framework 4.8 reference assemblies (NuGet:
     # microsoft.netframework.referenceassemblies.net48) -> pass their folder via -RefDir or $env:NET48_REFS

@@ -50,6 +50,23 @@ jobs:
           if ($p.ExitCode -ne 0) { throw "exit code $($p.ExitCode)" }
           Get-ChildItem screenshots | Format-Table Name, Length
 
+      - name: Self-update test (download latest release over a copy, verify SHA-256, swap exe)
+        shell: pwsh
+        run: |
+          $t = Join-Path $env:RUNNER_TEMP 'update-test'
+          New-Item $t -ItemType Directory -Force | Out-Null
+          Copy-Item dist/UltimateOptimizer.exe $t
+          $p = Start-Process "$t/UltimateOptimizer.exe" -ArgumentList '--update-selftest', "$t/result.txt" -PassThru
+          if (-not $p.WaitForExit(120000)) { $p.Kill(); throw 'timeout' }
+          Get-Content "$t/result.txt"
+          if ($p.ExitCode -ne 0) { throw 'self-update failed' }
+          if (-not (Test-Path "$t/UltimateOptimizer.exe.old")) { throw 'previous exe was not kept as .old' }
+          $sums = Invoke-RestMethod "https://github.com/${{ github.repository }}/releases/latest/download/SHA256SUMS.txt"
+          $want = ([regex]::Match($sums, '(?m)^([0-9a-f]{64})\s+UltimateOptimizer\.exe')).Groups[1].Value
+          $got = (Get-FileHash "$t/UltimateOptimizer.exe" -Algorithm SHA256).Hash.ToLower()
+          Write-Host "swapped exe: $got / release: $want"
+          if ($got -ne $want) { throw 'swapped exe does not match the release' }
+
       - uses: actions/upload-artifact@v4
         if: always()
         with:

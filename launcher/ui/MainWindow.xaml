@@ -35,6 +35,22 @@
                     <TextBlock Style="{StaticResource BodyMedium}" FontSize="15" Margin="0,6,0,24"
                                Text="Обратимая оптимизация Windows 10 и 11. Перед каждым изменением сохраняется старое значение — всё возвращается одной кнопкой."/>
 
+                    <!-- MD3 banner: new version available -->
+                    <Border x:Name="UpdateBanner" Visibility="Collapsed" CornerRadius="20" Background="{DynamicResource TertiaryContainer}" Padding="20,14" Margin="0,0,0,16">
+                        <DockPanel>
+                            <Border DockPanel.Dock="Left" Width="40" Height="40" CornerRadius="20" Background="{DynamicResource OnTertiaryContainer}" Opacity="0.12" Margin="0,0,-40,0"/>
+                            <TextBlock DockPanel.Dock="Left" Style="{StaticResource Icon}" Width="40" Text="&#xE896;" FontSize="20" Foreground="{DynamicResource OnTertiaryContainer}" Margin="0,0,16,0"/>
+                            <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" VerticalAlignment="Center" Margin="12,0,0,0">
+                                <Button x:Name="BannerLater" Style="{StaticResource TextButton}" Foreground="{DynamicResource OnTertiaryContainer}" Content="Позже"/>
+                                <Button x:Name="BannerUpdate" Style="{StaticResource FilledButton}" Tag="&#xE896;" Content="Обновить" Margin="8,0,0,0"/>
+                            </StackPanel>
+                            <StackPanel VerticalAlignment="Center">
+                                <TextBlock x:Name="BannerTitle" FontSize="15" FontWeight="SemiBold" Foreground="{DynamicResource OnTertiaryContainer}" Text="Доступна новая версия"/>
+                                <TextBlock x:Name="BannerText" FontSize="13" TextWrapping="Wrap" Margin="0,2,0,0" Opacity="0.85" Foreground="{DynamicResource OnTertiaryContainer}"/>
+                            </StackPanel>
+                        </DockPanel>
+                    </Border>
+
                     <Border x:Name="Hero" CornerRadius="28" Background="{DynamicResource PrimaryContainer}" Padding="32,28">
                         <Grid>
                             <Grid.ColumnDefinitions>
@@ -271,6 +287,27 @@
                         <RadioButton x:Name="ThemeLight" GroupName="theme" Style="{StaticResource Segment}" Tag="0" Content="Светлая"/>
                         <RadioButton x:Name="ThemeDark" GroupName="theme" Style="{StaticResource Segment}" Tag="0,20,20,0" Content="Тёмная"/>
                     </StackPanel>
+
+                    <TextBlock Style="{StaticResource TitleSmall}" Text="Обновления"/>
+                    <Border Style="{StaticResource OutlinedCard}" Padding="0">
+                        <StackPanel>
+                            <CheckBox x:Name="AutoUpdate" Style="{StaticResource Switch}" IsChecked="True">
+                                <StackPanel>
+                                    <TextBlock Style="{StaticResource BodyLarge}" Text="Проверять обновления при запуске"/>
+                                    <TextBlock Style="{StaticResource BodyMedium}" Margin="0,2,0,0"
+                                               Text="Новая версия скачивается с GitHub, сверяется по SHA-256 и ставится одной кнопкой с перезапуском. Бэкап и настройки сохраняются."/>
+                                </StackPanel>
+                            </CheckBox>
+                            <Border Style="{StaticResource Divider}"/>
+                            <DockPanel Margin="20,14">
+                                <Button x:Name="UpdateCheck" DockPanel.Dock="Right" Style="{StaticResource TonalButton}" Tag="&#xE72C;" Content="Проверить сейчас" Margin="16,0,0,0"/>
+                                <StackPanel VerticalAlignment="Center">
+                                    <TextBlock x:Name="UpdateStatus" Style="{StaticResource BodyLarge}" Text="Обновления ещё не проверялись"/>
+                                    <TextBlock x:Name="UpdateDetail" Style="{StaticResource BodyMedium}" Margin="0,2,0,0"/>
+                                </StackPanel>
+                            </DockPanel>
+                        </StackPanel>
+                    </Border>
 
                     <TextBlock Style="{StaticResource TitleSmall}" Text="Ссылки"/>
                     <WrapPanel>

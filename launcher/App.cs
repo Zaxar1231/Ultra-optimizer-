@@ -28,6 +28,8 @@ using Microsoft.Win32;
 [assembly: AssemblyDescription("Reversible Windows 10/11 optimizer")]
 [assembly: AssemblyVersion(BuildInfo.Version)]
 [assembly: AssemblyFileVersion(BuildInfo.Version)]
+// 4.5 = runs on every Windows 10/11 (4.6+ is built in) without asking to install a newer .NET
+[assembly: System.Runtime.Versioning.TargetFramework(".NETFramework,Version=v4.5", FrameworkDisplayName = ".NET Framework 4.5")]
 
 static class Program
 {
@@ -41,9 +43,39 @@ static class Program
         // CI: UltimateOptimizer.exe --screenshots <dir>  (no elevation, nothing is changed)
         string shots = args.Length == 2 && args[0] == "--screenshots" ? Path.GetFullPath(args[1]) : null;
 
+        // CI: download the latest release over this exe (exercises download, SHA-256 check and the file swap)
+        if (args.Length == 2 && args[0] == "--update-selftest")
+        {
+            try
+            {
+                var r = Updater.Latest();
+                string path = Updater.Install(r, null);
+                File.WriteAllText(args[1], "ok " + r.Tag + " -> " + path);
+                return 0;
+            }
+            catch (Exception e) { File.WriteAllText(args[1], "fail " + e); return 1; }
+        }
+
+        // started by the self-updater: wait for the old process, then run normally
+        bool updated = false;
+        if (args.Length >= 1 && args[0] == "--updated")
+        {
+            Updater.WaitForParent(args.Length > 1 ? args[1] : "");
+            updated = true;
+            args = new string[0];
+        }
+
+        Mutex single = null;
         if (shots == null)
         {
             if (!IsAdmin()) return Relaunch(args);
+            Updater.Cleanup();
+            if (args.Length == 0)
+            {
+                bool created;
+                single = new Mutex(true, @"Local\UltimateOptimizerApp", out created);
+                if (!created) { ActivateOtherInstance(); return 0; }
+            }
             try { Extract(); }
             catch (Exception e)
             {
@@ -61,12 +93,60 @@ static class Program
 
         var app = new Application { ShutdownMode = ShutdownMode.OnMainWindowClose };
         if (shots != null) MainUi.InstallScreenshotGuards(app, shots);
+        else InstallCrashHandler(app);
         app.Resources.MergedDictionaries.Add((ResourceDictionary)LoadXaml("ui/Styles.xaml"));
         Theme.ApplyMode();
         var ui = new MainUi();
         if (shots != null) return ui.SaveScreenshots(shots);
-        ui.CreateWindow();
-        return app.Run(ui.Window);
+        ui.CreateWindow(updated);
+        int code = app.Run(ui.Window);
+        GC.KeepAlive(single);
+        return code;
+    }
+
+    /// Any unexpected error: log it, tell the user, keep the app alive.
+    static void InstallCrashHandler(Application app)
+    {
+        app.DispatcherUnhandledException += (s, e) =>
+        {
+            string log = LogCrash(e.Exception);
+            MessageBox.Show("Что-то пошло не так, но приложение продолжит работу.\n\n" + e.Exception.Message +
+                            "\n\nПодробности: " + log, "Ultimate Optimizer", MessageBoxButton.OK, MessageBoxImage.Warning);
+            e.Handled = true;
+        };
+        AppDomain.CurrentDomain.UnhandledException += (s, e) => LogCrash(e.ExceptionObject as Exception);
+    }
+
+    static string LogCrash(Exception ex)
+    {
+        string log = Path.Combine(DataDir, "crash.log");
+        try
+        {
+            Directory.CreateDirectory(DataDir);
+            File.AppendAllText(log, "==== " + DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss") + " v" + BuildInfo.Version +
+                               " build " + WindowsBuild() + Environment.NewLine + ex + Environment.NewLine);
+        }
+        catch { }
+        return log;
+    }
+
+    [DllImport("user32.dll")] static extern bool SetForegroundWindow(IntPtr h);
+    [DllImport("user32.dll")] static extern bool ShowWindow(IntPtr h, int cmd);
+
+    static void ActivateOtherInstance()
+    {
+        try
+        {
+            var me = Process.GetCurrentProcess();
+            foreach (var p in Process.GetProcessesByName(me.ProcessName))
+                if (p.Id != me.Id && p.MainWindowHandle != IntPtr.Zero)
+                {
+                    ShowWindow(p.MainWindowHandle, 9);   // SW_RESTORE
+                    SetForegroundWindow(p.MainWindowHandle);
+                    return;
+                }
+        }
+        catch { }
     }
 
     public static object LoadXaml(string name)
@@ -106,6 +186,7 @@ static class Program
         }
     }
 
+    /// Writes the embedded scripts; unchanged files are left alone, a locked file is only fatal if it is missing.
     static void Extract()
     {
         Directory.CreateDirectory(AppDir);
@@ -113,13 +194,33 @@ static class Program
         foreach (string name in asm.GetManifestResourceNames())
         {
             if (!name.StartsWith("app/")) continue;
+            string dest = Path.Combine(AppDir, name.Substring(4));
+            byte[] data;
             using (Stream s = asm.GetManifestResourceStream(name))
             using (var ms = new MemoryStream())
             {
                 s.CopyTo(ms);
-                File.WriteAllBytes(Path.Combine(AppDir, name.Substring(4)), ms.ToArray());
+                data = ms.ToArray();
             }
+            try
+            {
+                if (File.Exists(dest))
+                {
+                    var cur = File.ReadAllBytes(dest);
+                    if (cur.Length == data.Length && StructuralEquals(cur, data)) continue;
+                    File.SetAttributes(dest, FileAttributes.Normal);
+                }
+                File.WriteAllBytes(dest, data);
+            }
+            catch (IOException) { if (!File.Exists(dest)) throw; }
+            catch (UnauthorizedAccessException) { if (!File.Exists(dest)) throw; }
         }
+    }
+
+    static bool StructuralEquals(byte[] a, byte[] b)
+    {
+        for (int i = 0; i < a.Length; i++) if (a[i] != b[i]) return false;
+        return true;
     }
 
     public static string PowerShell()
@@ -205,7 +306,7 @@ class MainUi
     }
 
     // ================================================================== window
-    public void CreateWindow()
+    public void CreateWindow(bool justUpdated)
     {
         Window = new Window
         {
@@ -230,6 +331,13 @@ class MainUi
                 var i = SysInfo.Collect();
                 root.Dispatcher.BeginInvoke((Action)(() => FillInfo(i)));
             });
+            if (justUpdated) Snack("Обновлено до версии " + BuildInfo.Version + " — всё готово");
+            if (Updater.AutoCheck)
+            {
+                var t = new DispatcherTimer { Interval = TimeSpan.FromSeconds(justUpdated ? 8 : 2) };
+                t.Tick += delegate { t.Stop(); CheckUpdates(false); };
+                t.Start();
+            }
             if (Program.WindowsBuild() < 10240)
                 Dialog("", "Windows не поддерживается",
                        "Нужна Windows 10 или 11. На Windows 7 и 8.1 оптимизация недоступна — работают только отчёт о ПК и папки.", "Понятно", null, false);
@@ -305,6 +413,15 @@ class MainUi
         Click("LinkRepo", () => Program.Open("https://github.com/Zaxar1231/Ultra-optimizer-"));
         Click("LinkDuck", () => Program.Open("https://github.com/itsfatduck/optimizerDuck"));
         Click("LinkAtlas", () => Program.Open("https://atlasos.net"));
+
+        var auto = E<CheckBox>("AutoUpdate");
+        auto.IsChecked = Updater.AutoCheck;
+        auto.Checked += delegate { Updater.AutoCheck = true; };
+        auto.Unchecked += delegate { Updater.AutoCheck = false; };
+        Click("UpdateCheck", () => CheckUpdates(true));
+        Click("BannerUpdate", ConfirmUpdate);
+        Click("BannerLater", () => E<Border>("UpdateBanner").Visibility = Visibility.Collapsed);
+        E<TextBlock>("UpdateStatus").Text = "Установлена версия " + BuildInfo.Version;
 
         Click("SnackAction", () => { var a = snackAction; HideSnack(); if (a != null) a(); });
         Click("DialogOk", () => { var a = dialogOk; HideDialog(); if (a != null) a(); });
@@ -487,6 +604,125 @@ class MainUi
         Snack("Готово! Перезагрузи компьютер, чтобы всё применилось.", "Перезагрузить", () =>
             Dialog("", "Перезагрузить сейчас?", "Сохрани открытые документы. Компьютер перезагрузится через 5 секунд.", "Перезагрузить",
                    () => { try { Process.Start(new ProcessStartInfo("shutdown.exe", "/r /t 5") { CreateNoWindow = true, UseShellExecute = false }); } catch { } }, false));
+    }
+
+    // ================================================================== self-update
+    ReleaseInfo pendingRelease;
+    bool updating;
+
+    void CheckUpdates(bool manual)
+    {
+        if (updating) return;
+        var status = E<TextBlock>("UpdateStatus");
+        var detail = E<TextBlock>("UpdateDetail");
+        var btn = E<Button>("UpdateCheck");
+        status.Text = "Проверяю обновления…";
+        detail.Text = "";
+        btn.IsEnabled = false;
+        ThreadPool.QueueUserWorkItem(_ =>
+        {
+            ReleaseInfo r = null;
+            string err = null;
+            try { r = Updater.Latest(); } catch (Exception e) { err = e.Message; }
+            root.Dispatcher.BeginInvoke((Action)(() =>
+            {
+                btn.IsEnabled = true;
+                if (err != null)
+                {
+                    status.Text = "Не удалось проверить обновления";
+                    detail.Text = err;
+                    if (manual) Snack("Нет связи с GitHub — попробуй позже");
+                    return;
+                }
+                if (Updater.IsNewer(r))
+                {
+                    pendingRelease = r;
+                    status.Text = "Доступна версия " + r.Version;
+                    detail.Text = "Установлена " + BuildInfo.Version;
+                    ShowBanner(r);
+                    if (manual) ConfirmUpdate();
+                    else Snack("Доступна новая версия " + r.Version, "Обновить", ConfirmUpdate);
+                }
+                else
+                {
+                    status.Text = "Установлена последняя версия " + BuildInfo.Version;
+                    detail.Text = "Проверено в " + DateTime.Now.ToString("HH:mm");
+                    if (manual) Snack("У тебя последняя версия");
+                }
+            }));
+        });
+    }
+
+    void ShowBanner(ReleaseInfo r)
+    {
+        E<TextBlock>("BannerTitle").Text = "Доступна версия " + r.Version;
+        E<TextBlock>("BannerText").Text = "Скачается с GitHub, сверится по SHA-256 и установится сама — приложение перезапустится.";
+        E<Border>("UpdateBanner").Visibility = Visibility.Visible;
+    }
+
+    void ConfirmUpdate()
+    {
+        if (pendingRelease == null || updating) return;
+        if (busy) { Snack("Обновлю после окончания текущей задачи — нажми «Обновить» ещё раз"); return; }
+        string notes = Updater.PlainNotes(pendingRelease.Notes, 700);
+        Dialog("\uE896", "Обновить до " + pendingRelease.Version + "?",
+               (notes.Length > 0 ? notes + "\n\n" : "") + "Приложение перезапустится. Бэкап и настройки сохранятся.",
+               "Обновить", DoUpdate, false);
+    }
+
+    void DoUpdate()
+    {
+        var r = pendingRelease;
+        if (r == null || busy) return;
+        updating = true;
+        E<Button>("BannerUpdate").IsEnabled = false;
+        E<Button>("UpdateCheck").IsEnabled = false;
+        ShowBanner(r);
+        SetUpdateProgress(0);
+        ThreadPool.QueueUserWorkItem(_ =>
+        {
+            try
+            {
+                string exe = Updater.Install(r, p => root.Dispatcher.BeginInvoke((Action)(() => SetUpdateProgress(p))));
+                root.Dispatcher.BeginInvoke((Action)(() => Restart(exe)));
+            }
+            catch (Exception e)
+            {
+                root.Dispatcher.BeginInvoke((Action)(() =>
+                {
+                    updating = false;
+                    E<Button>("BannerUpdate").IsEnabled = true;
+                    E<Button>("UpdateCheck").IsEnabled = true;
+                    E<TextBlock>("UpdateStatus").Text = "Обновление не удалось";
+                    E<TextBlock>("UpdateDetail").Text = e.Message;
+                    E<TextBlock>("BannerText").Text = "Не удалось: " + e.Message;
+                    Snack("Не удалось обновить: " + e.Message, "Страница релиза", () => Program.Open(r.PageUrl));
+                }));
+            }
+        });
+    }
+
+    void SetUpdateProgress(int p)
+    {
+        string t = "Скачиваю обновление… " + p + "%";
+        E<TextBlock>("BannerText").Text = t;
+        E<TextBlock>("UpdateStatus").Text = t;
+    }
+
+    void Restart(string exe)
+    {
+        E<TextBlock>("BannerText").Text = "Перезапуск…";
+        try
+        {
+            Process.Start(new ProcessStartInfo(exe, "--updated " + Process.GetCurrentProcess().Id) { UseShellExecute = false });
+        }
+        catch (Exception e)
+        {
+            updating = false;
+            Snack("Новая версия скачана, но не запустилась: " + e.Message);
+            return;
+        }
+        Application.Current.Shutdown();
     }
 
     // ================================================================== job runner
@@ -823,6 +1059,9 @@ class MainUi
                 E<Border>("Snackbar").Visibility = Visibility.Collapsed;
 
                 Navigate("NavHome"); Shot(dir, "home" + sfx);
+                ShowBanner(new ReleaseInfo { Version = new Version(9, 9, 0), Tag = "v9.9.0" });
+                Shot(dir, "update" + sfx);
+                E<Border>("UpdateBanner").Visibility = Visibility.Collapsed;
                 Navigate("NavOptimize"); E<CheckBox>("OptVbs").IsChecked = false; Shot(dir, "optimize" + sfx);
                 Navigate("NavTools"); Shot(dir, "tools" + sfx);
 
