@@ -817,7 +817,7 @@ class MainUi
             foreach (bool dark in new[] { false, true })
             {
                 string sfx = dark ? "-dark" : "-light";
-                Theme.Apply(dark);
+                Theme.Apply(dark, root.Resources);   // detached tree: app-level resource changes don't reach it
                 SyncThemeSegments();
                 HideDialog();
                 E<Border>("Snackbar").Visibility = Visibility.Collapsed;

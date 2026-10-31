@@ -81,10 +81,11 @@ static class Theme
         Apply(m == "dark" || (m == "system" && SystemIsDark()));
     }
 
-    public static void Apply(bool dark)
+    /// target = null -> application resources (live UI); a detached tree needs its own dictionary.
+    public static void Apply(bool dark, ResourceDictionary target = null)
     {
         IsDark = dark;
-        var res = Application.Current.Resources;
+        var res = target ?? Application.Current.Resources;
         foreach (var kv in dark ? Dark : Light)
         {
             var c = (Color)ColorConverter.ConvertFromString(kv.Value);
