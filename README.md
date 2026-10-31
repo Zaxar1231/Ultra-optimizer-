@@ -16,22 +16,29 @@
 
 | Файл | Что это |
 |---|---|
-| `UltimateOptimizer.exe` | Один файл, внутри все скрипты и меню. Просто запусти. |
+| `UltimateOptimizer.exe` | Приложение в одном файле, все скрипты внутри. Просто запусти. |
 | `UltimateOptimizer-vX.Y.Z.zip` | Те же скрипты отдельными файлами + `.bat` + exe |
 | `SHA256SUMS.txt` | Контрольные суммы |
 
-Запуск: `UltimateOptimizer.exe` → «Да» в окне UAC → выбери пункт меню.
+Запуск: `UltimateOptimizer.exe` → «Да» в окне UAC.
 Если SmartScreen предупреждает: «Подробнее» → «Выполнить в любом случае» (exe не подписан платным сертификатом; исходники и сборка открыты, см. [Actions](https://github.com/zaxar1231/ultra-optimizer-/actions)).
 
-```
-  1) Оптимизировать (с вопросами)
-  2) Оптимизировать без вопросов (безопасные настройки)
-  3) Откатить ВСЁ как было (точный бэкап)
-  4) Отчёт о железе ПК (почта / Telegram / только открыть)
-  5) Починка Windows (DISM, SFC, сеть, обновления)
-  6) Скачать и запустить optimizerDuck
-  7) Открыть папку со скриптами и логами
-```
+## Приложение
+
+Окно в стиле **Material Design 3**: светлая и тёмная темы, навигационная панель, карточки, переключатели. Ничего доустанавливать не нужно, приложение работает на .NET Framework 4.8, который встроен в Windows 10 и 11.
+
+<p align="center"><img src="docs/screenshots/home-dark.png" width="820" alt="Главная"></p>
+
+| | |
+|---|---|
+| <img src="docs/screenshots/optimize-light.png" alt="Оптимизация"> | <img src="docs/screenshots/log-dark.png" alt="Журнал"> |
+| <img src="docs/screenshots/tools-dark.png" alt="Инструменты"> | <img src="docs/screenshots/home-light.png" alt="Светлая тема"> |
+
+- **Главная**: железо ПК, статус оптимизации, подсказки по апгрейду.
+- **Оптимизация**: переключатели опций (программы, optimizerDuck, рискованные пункты) и запуск.
+- **Инструменты**: починка Windows (DISM + SFC, сброс сети, точки восстановления), отчёт о ПК, optimizerDuck, папки с бэкапом и логами.
+- **Журнал**: живой вывод скриптов с прогрессом. Журнал можно скопировать.
+- **О программе**: выбор темы и ссылки.
 
 ## Что делает
 
@@ -87,7 +94,7 @@ Set-ExecutionPolicy -Scope Process Bypass -Force
 .\Ultimate-Optimizer.ps1 -Undo      # откатить всё
 ```
 
-`UltimateOptimizer.exe` принимает те же ключи: `UltimateOptimizer.exe -Yes`.
+`UltimateOptimizer.exe` с ключами (`UltimateOptimizer.exe -Yes`) запускает скрипт в консоли без окна приложения.
 
 ## Откат и безопасность
 
@@ -97,9 +104,9 @@ Set-ExecutionPolicy -Scope Process Bypass -Force
 - Лог каждого запуска: `C:\ProgramData\UltimateOptimizer\log_*.txt`.
 
 Если что-то пошло не так:
-1. Запусти «Откатить всё» и перезагрузись.
+1. Нажми «Откатить всё» (на главной или в разделе «Оптимизация») и перезагрузись.
 2. Если Windows не загружается: 3 раза подряд выключи ПК кнопкой во время загрузки → «Дополнительные параметры» → «Восстановление системы» → точка «Before Ultimate-Optimizer».
-3. Если сеть пропала: «Починка Windows» → пункт 4.
+3. Если сеть пропала: «Инструменты» → «Сбросить сеть».
 
 ## Отчёт о ПК
 
@@ -121,15 +128,17 @@ Set-ExecutionPolicy -Scope Process Bypass -Force
 ## Сборка
 
 ```powershell
-powershell -ExecutionPolicy Bypass -File build.ps1   # Windows: csc.exe из .NET Framework 4
-pwsh ./build.ps1                                     # Linux: нужен mono-mcs
+powershell -ExecutionPolicy Bypass -File build.ps1        # Windows: csc.exe из .NET Framework 4
+pwsh ./build.ps1 -RefDir <net48 reference assemblies>     # Linux: mono-mcs + NuGet microsoft.netframework.referenceassemblies.net48
 ```
 
 Результат появляется в `dist/`. Релиз собирается автоматически, когда пушится тег `vX.Y.Z`, совпадающий с файлом `VERSION`.
 
 ```
 scripts/     PowerShell-скрипты, .bat, профили NVIDIA, README.txt для пользователя
-launcher/    исходник UltimateOptimizer.exe (C#, .NET Framework 4)
+launcher/    исходник приложения: WPF + Material Design 3 (C#, .NET Framework 4.8)
+  ui/        разметка XAML, стили компонентов MD3, иконка
+docs/        скриншоты (рендерятся в CI: UltimateOptimizer.exe --screenshots <папка>)
 build.ps1    сборка exe + zip + SHA256SUMS
 .github/     CI (проверка PSScriptAnalyzer + сборка) и релизы
 ```

@@ -22,7 +22,8 @@ class SysInfo
         var list = new List<ManagementBaseObject>();
         try
         {
-            using (var s = new ManagementObjectSearcher(scope, wql))
+            var opt = new EnumerationOptions { Timeout = TimeSpan.FromSeconds(10), ReturnImmediately = true };
+            using (var s = new ManagementObjectSearcher(new ManagementScope(scope), new ObjectQuery(wql), opt))
                 foreach (ManagementBaseObject o in s.Get()) list.Add(o);
         }
         catch { }

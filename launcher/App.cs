@@ -60,6 +60,7 @@ static class Program
         }
 
         var app = new Application { ShutdownMode = ShutdownMode.OnMainWindowClose };
+        if (shots != null) MainUi.InstallScreenshotGuards(app, shots);
         app.Resources.MergedDictionaries.Add((ResourceDictionary)LoadXaml("ui/Styles.xaml"));
         Theme.ApplyMode();
         var ui = new MainUi();
@@ -706,13 +707,50 @@ class MainUi
     }
 
     // ================================================================== screenshots (CI smoke test)
+    [DllImport("kernel32.dll")]
+    static extern uint SetErrorMode(uint mode);
+
+    static string progressFile;
+
+    static void Trace(string s)
+    {
+        try { File.AppendAllText(progressFile, DateTime.Now.ToString("HH:mm:ss.fff") + "  " + s + Environment.NewLine); } catch { }
+    }
+
+    /// No crash dialogs, every failure ends up in error.txt, and a hard timeout so CI can never hang.
+    public static void InstallScreenshotGuards(Application app, string dir)
+    {
+        Directory.CreateDirectory(dir);
+        progressFile = Path.Combine(dir, "progress.txt");
+        try { SetErrorMode(0x0001 | 0x0002); } catch { }   // SEM_FAILCRITICALERRORS | SEM_NOGPFAULTERRORBOX
+        Trace("start");
+        UnhandledExceptionEventHandler fatal = (s, e) =>
+        {
+            try { File.WriteAllText(Path.Combine(dir, "error.txt"), "Unhandled: " + e.ExceptionObject); } catch { }
+            Environment.Exit(2);
+        };
+        AppDomain.CurrentDomain.UnhandledException += fatal;
+        app.DispatcherUnhandledException += (s, e) =>
+        {
+            try { File.WriteAllText(Path.Combine(dir, "error.txt"), "Dispatcher: " + e.Exception); } catch { }
+            Environment.Exit(2);
+        };
+        new Thread(() =>
+        {
+            Thread.Sleep(TimeSpan.FromMinutes(3));
+            Trace("TIMEOUT");
+            try { File.WriteAllText(Path.Combine(dir, "error.txt"), "Timed out, see progress.txt"); } catch { }
+            Environment.Exit(3);
+        }) { IsBackground = true }.Start();
+    }
+
     static void Pump(int ms)
     {
         var sw = Stopwatch.StartNew();
         do
         {
             var frame = new DispatcherFrame();
-            Dispatcher.CurrentDispatcher.BeginInvoke(DispatcherPriority.ContextIdle,
+            Dispatcher.CurrentDispatcher.BeginInvoke(DispatcherPriority.Background,
                 new DispatcherOperationCallback(f => { ((DispatcherFrame)f).Continue = false; return null; }), frame);
             Dispatcher.PushFrame(frame);
             if (ms > 0) Thread.Sleep(15);
@@ -722,6 +760,7 @@ class MainUi
     void Shot(string dir, string name)
     {
         const int w = 1160, h = 760;
+        Trace("shot " + name);
         Pump(450);
         root.Measure(new Size(w, h));
         root.Arrange(new Rect(0, 0, w, h));
@@ -732,6 +771,7 @@ class MainUi
         var enc = new PngBitmapEncoder();
         enc.Frames.Add(BitmapFrame.Create(bmp));
         using (var f = File.Create(Path.Combine(dir, name + ".png"))) enc.Save(f);
+        Trace("saved " + name);
     }
 
     public int SaveScreenshots(string dir)
@@ -740,7 +780,9 @@ class MainUi
         {
             Directory.CreateDirectory(dir);
             screenshotMode = true;
+            Trace("collect sysinfo");
             FillInfo(SysInfo.Collect());
+            Trace("sysinfo ok");
 
             // host the UI in an off-screen window so templates, bindings and animations run like in real use
             Window = new Window
@@ -748,7 +790,7 @@ class MainUi
                 Content = root, Width = 1160, Height = 760, Left = -20000, Top = -20000,
                 WindowStyle = WindowStyle.None, ShowInTaskbar = false, ShowActivated = false
             };
-            try { Window.Show(); } catch { Window.Content = null; }
+            try { Window.Show(); Trace("window shown"); } catch (Exception ex) { Window.Content = null; Trace("no window: " + ex.Message); }
 
             foreach (bool dark in new[] { false, true })
             {
@@ -794,6 +836,7 @@ class MainUi
                 Navigate("NavAbout"); Shot(dir, "about" + sfx);
             }
             if (Window.IsVisible) Window.Close();
+            Trace("done");
             return 0;
         }
         catch (Exception e)
