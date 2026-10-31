@@ -3,14 +3,17 @@
   and repair Windows 10 / 11
   Run (PowerShell as Administrator):
       Set-ExecutionPolicy -Scope Process Bypass -Force; .\Win11-Repair.ps1
+  Without the menu:  .\Win11-Repair.ps1 -Action Restore | Undo | Repair | Network | All
 #>
+param([ValidateSet('Menu','Restore','Undo','Repair','Network','All')][string]$Action = 'Menu')
 
 #Requires -RunAsAdministrator
 $ErrorActionPreference = 'SilentlyContinue'
 $ProgressPreference    = 'SilentlyContinue'
 
-function Step($t) { Write-Host "`n>>> $t" -ForegroundColor Cyan }
-function Ok($t)   { Write-Host "    $t" -ForegroundColor Green }
+$GUI = [bool]$env:UO_GUI
+function Step($t) { if ($GUI) { Write-Host "##step $t" } else { Write-Host "`n>>> $t" -ForegroundColor Cyan } }
+function Ok($t)   { if ($GUI) { Write-Host "##ok $t" }   else { Write-Host "    $t" -ForegroundColor Green } }
 function SetReg($path, $name, $value, $type = 'DWord') {
     if (-not (Test-Path $path)) { New-Item -Path $path -Force | Out-Null }
     New-ItemProperty -Path $path -Name $name -Value $value -PropertyType $type -Force | Out-Null
@@ -133,6 +136,7 @@ function Reset-Network {
 }
 
 # ---------------------------------------------------------------- MENU
+if ($Action -eq 'Menu') {
 Write-Host @"
 
 ======= WINDOWS 10/11 REPAIR =======
@@ -144,13 +148,15 @@ Write-Host @"
  0) Exit
 ====================================
 "@ -ForegroundColor Magenta
-switch (Read-Host "Choose") {
-    '1' { Open-RestorePoint }
-    '2' { Undo-Tweaks }
-    '3' { Repair-System }
-    '4' { Reset-Network }
-    '5' { Undo-Tweaks; Repair-System; Reset-Network }
-    default { exit }
+    $Action = switch (Read-Host "Choose") { '1' { 'Restore' } '2' { 'Undo' } '3' { 'Repair' } '4' { 'Network' } '5' { 'All' } default { 'Exit' } }
+}
+switch ($Action) {
+    'Restore' { Open-RestorePoint; exit }
+    'Undo'    { Undo-Tweaks }
+    'Repair'  { Repair-System }
+    'Network' { Reset-Network }
+    'All'     { Undo-Tweaks; Repair-System; Reset-Network }
+    default   { exit }
 }
 Write-Host "`n========= DONE - REBOOT NOW =========" -ForegroundColor Green
 Write-Host "Removed Store apps (Calculator, Photos etc.) can be reinstalled from Microsoft Store if needed." -ForegroundColor Yellow

@@ -53,6 +53,15 @@ jobs:
         shell: powershell
         run: ./build.ps1
 
+      - name: UI smoke test (renders every page in both themes)
+        if: steps.ver.outputs.skip != 'true'
+        shell: pwsh
+        run: |
+          $p = Start-Process dist/UltimateOptimizer.exe -ArgumentList '--screenshots', "$PWD/screenshots" -Wait -PassThru
+          if (Test-Path screenshots/error.txt) { Get-Content screenshots/error.txt; exit 1 }
+          if ($p.ExitCode -ne 0) { throw "exit code $($p.ExitCode)" }
+          Get-ChildItem screenshots | Format-Table Name, Length
+
       - name: Publish release
         if: steps.ver.outputs.skip != 'true'
         uses: softprops/action-gh-release@v2

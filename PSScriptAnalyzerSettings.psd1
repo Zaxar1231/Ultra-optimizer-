@@ -8,6 +8,7 @@
         'PSAvoidUsingConvertToSecureStringWithPlainText',
         'PSAvoidUsingPlainTextForPassword',
         'PSReviewUnusedParameter',
-        'PSAvoidGlobalVars'
+        'PSAvoidGlobalVars',
+        'PSAvoidUsingPositionalParameters'
     )
 }

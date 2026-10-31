@@ -1,12 +1,13 @@
 <#
-  build.ps1 - builds dist\UltimateOptimizer.exe and dist\UltimateOptimizer-v<ver>.zip
+  build.ps1 - builds dist\UltimateOptimizer.exe (WPF, Material Design 3 UI) and dist\UltimateOptimizer-v<ver>.zip
 
   Windows: uses csc.exe from .NET Framework 4 (already in every Windows 10/11)
-  Linux:   uses mcs (apt install mono-mcs) - for local checks; release builds run on GitHub Actions
+  Linux:   uses mcs (apt install mono-mcs) + .NET 4.8 reference assemblies (-RefDir) - for local checks;
+           release builds run on GitHub Actions
 
      pwsh ./build.ps1            (or: powershell -ExecutionPolicy Bypass -File build.ps1)
 #>
-param([string]$Version = (Get-Content (Join-Path $PSScriptRoot 'VERSION') -Raw).Trim())
+param([string]$Version = (Get-Content (Join-Path $PSScriptRoot 'VERSION') -Raw).Trim(), [string]$RefDir)
 
 $ErrorActionPreference = 'Stop'
 $root  = $PSScriptRoot
@@ -36,12 +37,17 @@ foreach ($f in Get-ChildItem $src -File) {
     }
 }
 
-# ---- 2. compile launcher with all staged files embedded
+# ---- 2. compile the WPF app with all staged files + UI embedded
 $buildInfo = Join-Path $gen 'BuildInfo.cs'
 "static class BuildInfo { public const string Version = `"$Version`"; }" | Set-Content $buildInfo -Encoding UTF8
-$exe = Join-Path $dist 'UltimateOptimizer.exe'
-$resources = Get-ChildItem $stage -File | ForEach-Object { "-resource:$($_.FullName),app/$($_.Name)" }
-$sources = @((Join-Path $root 'launcher/Launcher.cs'), $buildInfo)
+$exe  = Join-Path $dist 'UltimateOptimizer.exe'
+$ui   = Join-Path $root 'launcher/ui'
+$icon = Join-Path $ui 'app.ico'
+$resources  = @(Get-ChildItem $stage -File | ForEach-Object { "-resource:$($_.FullName),app/$($_.Name)" })
+$resources += Get-ChildItem $ui -File | ForEach-Object { "-resource:$($_.FullName),ui/$($_.Name)" }
+$sources = @(Get-ChildItem (Join-Path $root 'launcher') -Filter *.cs | ForEach-Object FullName) + $buildInfo
+$libs = 'mscorlib', 'System', 'System.Core', 'System.Xml', 'System.Xaml', 'System.Management', 'WindowsBase', 'PresentationCore', 'PresentationFramework'
+$common = @('-target:winexe', '-platform:anycpu', '-optimize+', '-nologo', "-win32icon:$icon", "-out:$exe")
 
 $csc = $null
 if ($env:WINDIR) {
@@ -49,9 +55,20 @@ if ($env:WINDIR) {
            Where-Object { Test-Path $_ } | Select-Object -First 1
 }
 if ($csc) {
-    & $csc -nologo -target:exe -platform:anycpu -optimize+ -codepage:65001 "-out:$exe" @resources @sources
+    $fx = Split-Path $csc
+    $refs = foreach ($l in $libs) {
+        $p = @("$fx\$l.dll", "$fx\WPF\$l.dll") | Where-Object { Test-Path $_ } | Select-Object -First 1
+        if (-not $p) { throw "reference $l.dll not found in $fx" }
+        "-r:$p"
+    }
+    & $csc @common -codepage:65001 @refs @resources @sources
 } elseif (Get-Command mcs -ErrorAction SilentlyContinue) {
-    & mcs -target:exe -platform:anycpu -optimize+ -sdk:4.5 "-out:$exe" @resources @sources
+    # Linux check build: compile against the .NET Framework 4.8 reference assemblies (NuGet:
+    # microsoft.netframework.referenceassemblies.net48) -> pass their folder via -RefDir or $env:NET48_REFS
+    $refDir = if ($RefDir) { $RefDir } else { $env:NET48_REFS }
+    if (-not $refDir -or -not (Test-Path (Join-Path $refDir 'PresentationFramework.dll'))) { throw "set -RefDir to the .NET 4.8 reference assemblies folder" }
+    $refs = $libs | ForEach-Object { "-r:" + (Join-Path $refDir "$_.dll") }
+    & mcs @common -langversion:5 -nostdlib -noconfig @refs @resources @sources
 } else { throw "No C# compiler found (csc.exe from .NET Framework 4 on Windows, or mcs on Linux)" }
 if ($LASTEXITCODE -ne 0 -or -not (Test-Path $exe)) { throw "compile failed" }
 Copy-Item $exe $stage

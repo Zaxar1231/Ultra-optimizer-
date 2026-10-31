@@ -18,9 +18,10 @@
      .\Ultimate-Optimizer.ps1 -NoApps    skip software downloads
      .\Ultimate-Optimizer.ps1 -NoDuck    don't download optimizerDuck
      .\Ultimate-Optimizer.ps1 -Undo      restore EVERYTHING exactly as it was
+     -DisableVBS / -DisableMitigations   turn the risky options on without asking (used by the GUI)
 =====================================================================
 #>
-param([switch]$Undo, [switch]$Yes, [switch]$NoApps, [switch]$NoDuck)
+param([switch]$Undo, [switch]$Yes, [switch]$NoApps, [switch]$NoDuck, [switch]$DisableVBS, [switch]$DisableMitigations)
 
 #Requires -RunAsAdministrator
 $ErrorActionPreference = 'SilentlyContinue'
@@ -33,9 +34,11 @@ $Tools  = Join-Path $env:SystemDrive 'Tools'
 New-Item -ItemType Directory -Path $BKDir, $Tools -Force | Out-Null
 Start-Transcript -Path (Join-Path $BKDir "log_$(Get-Date -f yyyyMMdd_HHmmss).txt") | Out-Null
 
-function Step($t) { Write-Host "`n>>> $t" -ForegroundColor Cyan }
-function Ok($t)   { Write-Host "    $t" -ForegroundColor Green }
-function Warn($t) { Write-Host "    $t" -ForegroundColor Yellow }
+# UO_GUI=1 -> plain markers that UltimateOptimizer.exe turns into styled log lines
+$GUI = [bool]$env:UO_GUI
+function Step($t) { if ($GUI) { Write-Host "##step $t" } else { Write-Host "`n>>> $t" -ForegroundColor Cyan } }
+function Ok($t)   { if ($GUI) { Write-Host "##ok $t" }   else { Write-Host "    $t" -ForegroundColor Green } }
+function Warn($t) { if ($GUI) { Write-Host "##warn $t" } else { Write-Host "    $t" -ForegroundColor Yellow } }
 function Ask($q)  { if ($Yes) { return $false }; (Read-Host "$q [y/N]") -match '^(y|yes|d|da)$' }
 
 # =====================================================================
@@ -258,8 +261,8 @@ Write-Host "  $($os.Caption) build $build | RAM $ramGB GB | System disk: $($sysD
 Write-Host "  GPU: $($gpus -join ' | ')"
 Write-Host "=============================================================" -ForegroundColor Magenta
 
-$doVBS  = Ask "`n Disable VBS / Memory Integrity? (+5-15% FPS, breaks WSL2/Docker/Hyper-V/some anticheats like FACEIT need it OFF anyway)"
-$doMit  = Ask " Disable Spectre/Meltdown mitigations? (+FPS mainly on CPUs older than 2019, less security)"
+$doVBS  = $DisableVBS -or (Ask "`n Disable VBS / Memory Integrity? (+5-15% FPS, breaks WSL2/Docker/Hyper-V/some anticheats like FACEIT need it OFF anyway)")
+$doMit  = $DisableMitigations -or (Ask " Disable Spectre/Meltdown mitigations? (+FPS mainly on CPUs older than 2019, less security)")
 $doApps = -not $NoApps
 if (-not $Yes -and -not $NoApps) { $doApps = -not ((Read-Host " Download & install tools + NVIDIA profile + optimizerDuck? [Y/n]") -match '^(n|no|net)$') }
 

@@ -39,6 +39,20 @@ jobs:
         shell: powershell
         run: ./build.ps1
 
+      - name: UI smoke test (renders every page in both themes)
+        shell: pwsh
+        run: |
+          $p = Start-Process dist/UltimateOptimizer.exe -ArgumentList '--screenshots', "$PWD/screenshots" -Wait -PassThru
+          if (Test-Path screenshots/error.txt) { Get-Content screenshots/error.txt; exit 1 }
+          if ($p.ExitCode -ne 0) { throw "exit code $($p.ExitCode)" }
+          Get-ChildItem screenshots | Format-Table Name, Length
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: screenshots
+          path: screenshots/*
+
       - uses: actions/upload-artifact@v4
         with:
           name: UltimateOptimizer

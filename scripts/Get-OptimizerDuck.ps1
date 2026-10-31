@@ -24,8 +24,9 @@ $ProgressPreference    = 'SilentlyContinue'
 $Repo     = 'itsfatduck/optimizerDuck'
 $Releases = "https://github.com/$Repo/releases/latest"
 
-function Ok($t)   { Write-Host "    $t" -ForegroundColor Green }
-function Warn($t) { Write-Host "    $t" -ForegroundColor Yellow }
+$GUI = [bool]$env:UO_GUI
+function Ok($t)   { if ($GUI) { Write-Host "##ok $t" }   else { Write-Host "    $t" -ForegroundColor Green } }
+function Warn($t) { if ($GUI) { Write-Host "##warn $t" } else { Write-Host "    $t" -ForegroundColor Yellow } }
 
 $build = [Environment]::OSVersion.Version.Build
 if ($build -lt 10240) { Warn "optimizerDuck needs Windows 10/11 (this is build $build)"; return }
