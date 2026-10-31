@@ -1391,6 +1391,14 @@ class MainUi
             Trace("collect sysinfo");
             FillInfo(SysInfo.Collect());
             Trace("sysinfo ok");
+            try
+            {
+                var m = Benchmark.Measure();
+                Trace(string.Format(System.Globalization.CultureInfo.InvariantCulture,
+                    "bench: latMed={0:F1}us p99={1:F1}us cpu={2:F1}% ram={3:F2}GB procs={4} services={5} boot={6}s startup={7} free={8:F1}GB",
+                    m.LatMed, m.LatP99, m.Cpu, m.RamGb, m.Procs, m.Services, m.BootSec, m.Startup, m.DiskFreeGb));
+            }
+            catch (Exception ex) { Trace("bench failed: " + ex); }
 
 
             foreach (bool dark in new[] { false, true })
