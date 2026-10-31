@@ -227,7 +227,7 @@ partial class MainUi
                 };
                 sw.Checked += h;
                 sw.Unchecked += h;
-                string sub1 = t.Folder + (t.Author != null ? " · " + t.Author : "") + (t.Next != null ? " · следующий запуск " + t.Next : "");
+                string sub1 = (t.Folder == "\\" ? "Корневая папка" : t.Folder) + (t.Author != null ? " · " + t.Author : "") + (t.Next != null ? " · следующий запуск " + t.Next : "");
                 var row = ListRow(null, t.Microsoft ? "" : "", t.Name, sub1, t.Action,
                                   t.Running ? "выполняется" : null, "PrimaryContainer", "OnPrimaryContainer", sw);
                 taskRows.Add(new KeyValuePair<SchedTask, FrameworkElement>(t, row));
@@ -413,7 +413,8 @@ partial class MainUi
             foot.Children.Add(chip);
         }
         var st = new TextBlock { FontSize = 12, VerticalAlignment = VerticalAlignment.Center,
-                                 Text = r.Avg >= 0 ? "±" + Math.Round(r.Jitter, 1) + " мс · " + Math.Round(r.Loss) + "% потерь" : "" };
+                                 Text = r.Avg >= 0 ? "±" + Math.Round(r.Jitter, 1) + " · " + Math.Round(r.Loss) + "%" : "",
+                                 ToolTip = "джиттер (разброс пинга), мс · потери пакетов" };
         st.SetResourceReference(TextBlock.ForegroundProperty, "OnSurfaceVariant");
         foot.Children.Add(st);
         sp.Children.Add(foot);
