@@ -18,6 +18,7 @@
                     HorizontalAlignment="Center" Margin="0,0,0,32"/>
             <RadioButton x:Name="NavHome" GroupName="nav" Style="{StaticResource NavItem}" Tag="&#xE80F;" Content="Главная" IsChecked="True"/>
             <RadioButton x:Name="NavOptimize" GroupName="nav" Style="{StaticResource NavItem}" Tag="&#xE945;" Content="Оптимизация"/>
+            <RadioButton x:Name="NavBench" GroupName="nav" Style="{StaticResource NavItem}" Tag="&#xE9D9;" Content="Замер"/>
             <RadioButton x:Name="NavTools" GroupName="nav" Style="{StaticResource NavItem}" Tag="&#xE90F;" Content="Инструменты"/>
             <RadioButton x:Name="NavLog" GroupName="nav" Style="{StaticResource NavItem}" Tag="&#xE81C;" Content="Журнал"/>
             <RadioButton x:Name="NavAbout" GroupName="nav" Style="{StaticResource NavItem}" Tag="&#xE946;" Content="О программе"/>
@@ -92,55 +93,56 @@
                     <TextBlock Style="{StaticResource BodyMedium}" FontSize="15" Margin="0,6,0,0"
                                Text="Создаётся точка восстановления и точный бэкап каждого значения в C:\ProgramData\UltimateOptimizer. Повторный запуск безопасен."/>
 
-                    <TextBlock Style="{StaticResource TitleSmall}" Text="Основное"/>
-                    <Border Style="{StaticResource OutlinedCard}" Padding="0">
-                        <StackPanel>
-                            <CheckBox x:Name="OptApps" Style="{StaticResource Switch}" IsChecked="True">
-                                <StackPanel>
-                                    <TextBlock Style="{StaticResource BodyLarge}" Text="Установить полезные программы"/>
-                                    <TextBlock Style="{StaticResource BodyMedium}" Margin="0,2,0,0"
-                                               Text="Visual C++ и DirectX для игр, HWiNFO, Process Lasso, 7-Zip, CrystalDiskInfo, MSI Afterburner, профиль драйвера NVIDIA"/>
-                                </StackPanel>
-                            </CheckBox>
-                            <Border Style="{StaticResource Divider}"/>
-                            <CheckBox x:Name="OptDuck" Style="{StaticResource Switch}" IsChecked="True">
-                                <StackPanel>
-                                    <TextBlock Style="{StaticResource BodyLarge}" Text="Скачать optimizerDuck"/>
-                                    <TextBlock Style="{StaticResource BodyMedium}" Margin="0,2,0,0"
-                                               Text="Последний релиз с GitHub в C:\Tools\optimizerDuck, с проверкой SHA-256. Только скачивается, запускаешь сам."/>
-                                </StackPanel>
-                            </CheckBox>
-                        </StackPanel>
-                    </Border>
+                    <TextBlock Style="{StaticResource TitleSmall}" Text="Профиль"/>
+                    <UniformGrid x:Name="ProfileGrid" Columns="4" Margin="0,0,-12,0"/>
 
-                    <TextBlock Style="{StaticResource TitleSmall}" Foreground="{DynamicResource Error}" Text="Рискованное — по умолчанию выключено"/>
-                    <Border Style="{StaticResource OutlinedCard}" Padding="0">
-                        <StackPanel>
-                            <CheckBox x:Name="OptVbs" Style="{StaticResource Switch}">
-                                <StackPanel>
-                                    <TextBlock Style="{StaticResource BodyLarge}" Text="Выключить VBS / Memory Integrity"/>
-                                    <TextBlock Style="{StaticResource BodyMedium}" Margin="0,2,0,0"
-                                               Text="+5–15% FPS, но перестанут работать WSL2, Docker, Hyper-V и песочница Windows."/>
-                                </StackPanel>
-                            </CheckBox>
-                            <Border Style="{StaticResource Divider}"/>
-                            <CheckBox x:Name="OptMit" Style="{StaticResource Switch}">
-                                <StackPanel>
-                                    <TextBlock Style="{StaticResource BodyLarge}" Text="Выключить защиту от Spectre / Meltdown"/>
-                                    <TextBlock Style="{StaticResource BodyMedium}" Margin="0,2,0,0"
-                                               Text="Прирост заметен в основном на процессорах до 2019 года. Снижает безопасность."/>
-                                </StackPanel>
-                            </CheckBox>
-                        </StackPanel>
-                    </Border>
-
-                    <TextBlock Style="{StaticResource TitleSmall}" Text="Что изменится"/>
-                    <WrapPanel x:Name="ScopeChips"/>
+                    <DockPanel Margin="4,20,0,10">
+                        <Button x:Name="TweaksAll" DockPanel.Dock="Right" Style="{StaticResource TextButton}" Content="Развернуть все"/>
+                        <Button x:Name="TweaksReset" DockPanel.Dock="Right" Style="{StaticResource TextButton}" Tag="&#xE72C;" Content="Сбросить" Margin="0,0,4,0"/>
+                        <TextBlock x:Name="TweaksTitle" Style="{StaticResource TitleSmall}" Margin="0" VerticalAlignment="Center" Text="Твики"/>
+                    </DockPanel>
+                    <StackPanel x:Name="TweakGroups"/>
 
                     <WrapPanel Margin="0,20,0,0">
                         <Button x:Name="OptRun" Style="{StaticResource FilledButton}" Tag="&#xE768;" Content="Запустить оптимизацию" Margin="0,0,8,8"/>
                         <Button x:Name="OptUndo" Style="{StaticResource TextButton}" Tag="&#xE7A7;" Content="Откатить всё" Margin="0,0,8,8"/>
                     </WrapPanel>
+                </StackPanel>
+            </ScrollViewer>
+
+            <!-- ============================================================ BENCHMARK -->
+            <ScrollViewer x:Name="PageBench" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled" Visibility="Collapsed">
+                <StackPanel Margin="36,32,36,36" MaxWidth="1040">
+                    <TextBlock Style="{StaticResource HeadlineMedium}" Text="Замер «до» и «после»"/>
+                    <TextBlock Style="{StaticResource BodyMedium}" FontSize="15" Margin="0,6,0,24"
+                               Text="Замер «до» делается сам перед первой оптимизацией, «после» — сам при первом запуске после перезагрузки. Перед ручным замером закрой тяжёлые программы."/>
+                    <Border CornerRadius="28" Background="{DynamicResource SecondaryContainer}" Padding="32,26">
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="Auto"/>
+                            </Grid.ColumnDefinitions>
+                            <StackPanel VerticalAlignment="Center">
+                                <TextBlock x:Name="BenchHeroTitle" FontFamily="{StaticResource DisplayFont}" FontSize="26" TextWrapping="Wrap"
+                                           Foreground="{DynamicResource OnSecondaryContainer}" Text="Замеров ещё нет"/>
+                                <TextBlock x:Name="BenchHeroText" Margin="0,8,0,20" TextWrapping="Wrap" FontSize="14" LineHeight="21" Opacity="0.85"
+                                           Foreground="{DynamicResource OnSecondaryContainer}"/>
+                                <WrapPanel>
+                                    <Button x:Name="BenchRun" Style="{StaticResource FilledButton}" Tag="&#xE9D9;" Content="Измерить сейчас" Margin="0,0,8,8"/>
+                                    <Button x:Name="BenchReset" Style="{StaticResource TextButton}" Foreground="{DynamicResource OnSecondaryContainer}" Content="Сбросить замеры" Margin="0,0,8,8"/>
+                                </WrapPanel>
+                            </StackPanel>
+                            <StackPanel x:Name="BenchHeroScore" Grid.Column="1" Margin="28,0,8,0" VerticalAlignment="Center" Visibility="Collapsed">
+                                <TextBlock x:Name="BenchHeroValue" FontFamily="{StaticResource DisplayFont}" FontSize="60" FontWeight="SemiBold"
+                                           Foreground="{DynamicResource Primary}" HorizontalAlignment="Center"/>
+                                <TextBlock x:Name="BenchHeroCaption" FontSize="13" Foreground="{DynamicResource OnSecondaryContainer}" HorizontalAlignment="Center" Opacity="0.85"/>
+                            </StackPanel>
+                        </Grid>
+                    </Border>
+                    <TextBlock Style="{StaticResource TitleSmall}" Text="Показатели"/>
+                    <UniformGrid x:Name="BenchGrid" Columns="3" Margin="0,0,-12,0"/>
+                    <TextBlock x:Name="BenchNote" Style="{StaticResource BodyMedium}" FontSize="12" Margin="4,8,0,0"
+                               Text="Задержка отклика — время пробуждения потока после сигнала (медиана). Время загрузки берётся из журнала Windows и обновляется после перезагрузки."/>
                 </StackPanel>
             </ScrollViewer>
 
@@ -170,7 +172,7 @@
                         <Border Style="{StaticResource OutlinedCard}" Margin="0,0,16,16">
                             <DockPanel>
                                 <Border DockPanel.Dock="Top" Width="48" Height="48" CornerRadius="14" Background="{DynamicResource TertiaryContainer}" HorizontalAlignment="Left">
-                                    <TextBlock Style="{StaticResource Icon}" Text="&#xE9D9;" FontSize="22" Foreground="{DynamicResource OnTertiaryContainer}"/>
+                                    <TextBlock Style="{StaticResource Icon}" Text="&#xE8A5;" FontSize="22" Foreground="{DynamicResource OnTertiaryContainer}"/>
                                 </Border>
                                 <TextBlock DockPanel.Dock="Top" Style="{StaticResource TitleLarge}" Text="Отчёт о ПК" Margin="0,16,0,6"/>
                                 <TextBlock DockPanel.Dock="Top" Style="{StaticResource BodyMedium}" Margin="0,0,0,16"

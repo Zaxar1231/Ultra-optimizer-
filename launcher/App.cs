@@ -3,6 +3,7 @@
 // hidden; their output is streamed into the "Журнал" page.
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.ComponentModel;
 using System.Diagnostics;
 using System.IO;
@@ -15,6 +16,7 @@ using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Controls.Primitives;
 using System.Windows.Documents;
+using System.Windows.Input;
 using System.Windows.Interop;
 using System.Windows.Markup;
 using System.Windows.Media;
@@ -287,9 +289,10 @@ class MainUi
         root = (FrameworkElement)Program.LoadXaml("ui/MainWindow.xaml");
         iconFont = (FontFamily)Application.Current.FindResource("IconFont");
         textFont = (FontFamily)Application.Current.FindResource("TextFont");
-        foreach (var p in new[] { "PageHome", "PageOptimize", "PageTools", "PageLog", "PageAbout" }) pages[p] = E<FrameworkElement>(p);
+        foreach (var p in new[] { "PageHome", "PageOptimize", "PageBench", "PageTools", "PageLog", "PageAbout" }) pages[p] = E<FrameworkElement>(p);
         Wire();
-        BuildScopeChips();
+        BuildTweaks();
+        RefreshBench(Benchmark.Load());
         FillInfo(null);
         RefreshStatus();
         E<TextBlock>("AboutVersion").Text = "Версия " + BuildInfo.Version;
@@ -331,6 +334,7 @@ class MainUi
                 var i = SysInfo.Collect();
                 root.Dispatcher.BeginInvoke((Action)(() => FillInfo(i)));
             });
+            AutoBenchAfterReboot();
             if (justUpdated) Snack("Обновлено до версии " + BuildInfo.Version + " — всё готово");
             if (Updater.AutoCheck)
             {
@@ -371,7 +375,7 @@ class MainUi
 
     void Wire()
     {
-        foreach (var pair in new[] { new[] { "NavHome", "PageHome" }, new[] { "NavOptimize", "PageOptimize" }, new[] { "NavTools", "PageTools" },
+        foreach (var pair in new[] { new[] { "NavHome", "PageHome" }, new[] { "NavOptimize", "PageOptimize" }, new[] { "NavBench", "PageBench" }, new[] { "NavTools", "PageTools" },
                                      new[] { "NavLog", "PageLog" }, new[] { "NavAbout", "PageAbout" } })
         {
             string page = pair[1];
@@ -398,6 +402,17 @@ class MainUi
         Click("ToolDuckPage", () => Program.Open("https://github.com/itsfatduck/optimizerDuck"));
         Click("ToolLogs", () => OpenFolder(Program.DataDir));
         Click("ToolTools", () => OpenFolder(Path.Combine(Environment.GetEnvironmentVariable("SystemDrive") + "\\", "Tools")));
+
+        Click("BenchRun", () => RunBench(false, null));
+        Click("BenchReset", () => Dialog("\uE74D", "Сбросить замеры?", "Замер «до» и последний замер удалятся. Следующий замер станет новой точкой отсчёта.",
+                                         "Сбросить", () => { Benchmark.Reset(); RefreshBench(new BenchData()); }, true));
+        Click("TweaksReset", () => ApplySelection(catalog.ForProfile(catalog.Profiles[0], lowRam)));
+        Click("TweaksAll", () =>
+        {
+            allExpanded = !allExpanded;
+            foreach (var x in groupExpanders) x(allExpanded);
+            E<Button>("TweaksAll").Content = allExpanded ? "Свернуть все" : "Развернуть все";
+        });
 
         Click("LogCopy", () =>
         {
@@ -438,6 +453,8 @@ class MainUi
         double w = root.ActualWidth;
         E<UniformGrid>("InfoGrid").Columns = w > 1080 ? 3 : 2;
         E<UniformGrid>("ToolsGrid").Columns = w > 960 ? 2 : 1;
+        E<UniformGrid>("ProfileGrid").Columns = w > 1100 ? 4 : 2;
+        E<UniformGrid>("BenchGrid").Columns = w > 1080 ? 4 : 2;
     }
 
     // ================================================================== navigation
@@ -473,17 +490,341 @@ class MainUi
     }
 
     // ================================================================== home
-    static readonly string[][] Scope =
+    // ================================================================== tweaks & profiles
+    Catalog catalog;
+    readonly Dictionary<string, CheckBox> tweakBoxes = new Dictionary<string, CheckBox>();
+    readonly Dictionary<string, Border> profileCards = new Dictionary<string, Border>();
+    readonly List<Action> groupCounters = new List<Action>();
+    readonly List<Action<bool>> groupExpanders = new List<Action<bool>>();
+    bool lowRam, applyingProfile, allExpanded;
+
+    static object Res(string key) { return Application.Current.FindResource(key); }
+
+    void BuildTweaks()
     {
-        new[] { "", "Питание" }, new[] { "", "Процессор и таймеры" }, new[] { "", "Игры и видеокарта" },
-        new[] { "", "Интерфейс и мышь" }, new[] { "", "Телеметрия и реклама" }, new[] { "", "Службы и задачи" },
-        new[] { "", "Предустановленный мусор" }, new[] { "", "Очистка" }
+        catalog = Catalog.Load();
+        lowRam = Benchmark.TotalRamGb() <= 8.5;
+        var grid = E<UniformGrid>("ProfileGrid");
+        foreach (var p in catalog.Profiles)
+        {
+            var card = ProfileCard(p);
+            profileCards[p.Id] = card;
+            grid.Children.Add(card);
+        }
+        var host = E<StackPanel>("TweakGroups");
+        foreach (var g in catalog.Groups) host.Children.Add(GroupCard(g));
+        var saved = Catalog.LoadSelection();
+        if (saved != null) saved.IntersectWith(tweakBoxes.Keys);
+        ApplySelection(saved != null && saved.Count > 0 ? saved : catalog.ForProfile(catalog.Profiles[0], lowRam));
+    }
+
+    HashSet<string> Selection()
+    {
+        return new HashSet<string>(tweakBoxes.Where(kv => kv.Value.IsChecked == true).Select(kv => kv.Key));
+    }
+
+    void ApplySelection(HashSet<string> sel)
+    {
+        applyingProfile = true;
+        foreach (var kv in tweakBoxes) kv.Value.IsChecked = sel.Contains(kv.Key);
+        applyingProfile = false;
+        SelectionChanged();
+    }
+
+    void SelectionChanged()
+    {
+        var sel = Selection();
+        var match = catalog.Match(sel, lowRam);
+        foreach (var kv in profileCards) StyleProfileCard(kv.Value, match != null && match.Id == kv.Key);
+        foreach (var c in groupCounters) c();
+        E<TextBlock>("TweaksTitle").Text = "Твики · " + sel.Count + " из " + tweakBoxes.Count + (match == null ? " · свой набор" : "");
+    }
+
+    Border ProfileCard(TweakProfile p)
+    {
+        var card = new Border { CornerRadius = new CornerRadius(16), Padding = new Thickness(16), Margin = new Thickness(0, 0, 12, 12),
+                                BorderThickness = new Thickness(1), Cursor = Cursors.Hand, ToolTip = p.Desc };
+        var sp = new StackPanel();
+        var top = new DockPanel();
+        var circle = new Border { Width = 40, Height = 40, CornerRadius = new CornerRadius(20), HorizontalAlignment = HorizontalAlignment.Left };
+        var icon = new TextBlock { Text = p.Icon, FontFamily = iconFont, FontSize = 18, HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Center };
+        circle.Child = icon;
+        var check = new TextBlock { Text = "", FontFamily = iconFont, FontSize = 16, VerticalAlignment = VerticalAlignment.Top, Visibility = Visibility.Collapsed };
+        DockPanel.SetDock(check, Dock.Right);
+        top.Children.Add(check);
+        top.Children.Add(circle);
+        sp.Children.Add(top);
+        var title = new TextBlock { Text = p.Title, FontSize = 16, FontWeight = FontWeights.SemiBold, Margin = new Thickness(0, 12, 0, 4) };
+        var desc = new TextBlock { Text = p.Desc, FontSize = 12.5, TextWrapping = TextWrapping.Wrap, LineHeight = 18 };
+        sp.Children.Add(title);
+        sp.Children.Add(desc);
+        card.Child = sp;
+        card.Tag = new FrameworkElement[] { circle, icon, check, title, desc };
+        card.MouseLeftButtonUp += delegate { if (!busy) ApplySelection(catalog.ForProfile(p, lowRam)); };
+        return card;
+    }
+
+    void StyleProfileCard(Border card, bool selected)
+    {
+        var parts = (FrameworkElement[])card.Tag;
+        card.SetResourceReference(Border.BackgroundProperty, selected ? "SecondaryContainer" : "Surface");
+        card.SetResourceReference(Border.BorderBrushProperty, selected ? "Primary" : "OutlineVariant");
+        ((Border)parts[0]).SetResourceReference(Border.BackgroundProperty, selected ? "Primary" : "SecondaryContainer");
+        parts[1].SetResourceReference(TextBlock.ForegroundProperty, selected ? "OnPrimary" : "OnSecondaryContainer");
+        parts[2].Visibility = selected ? Visibility.Visible : Visibility.Collapsed;
+        parts[2].SetResourceReference(TextBlock.ForegroundProperty, "Primary");
+        parts[3].SetResourceReference(TextBlock.ForegroundProperty, selected ? "OnSecondaryContainer" : "OnSurface");
+        parts[4].SetResourceReference(TextBlock.ForegroundProperty, selected ? "OnSecondaryContainer" : "OnSurfaceVariant");
+    }
+
+    FrameworkElement GroupCard(TweakGroup g)
+    {
+        var card = new Border { Style = (Style)Res("OutlinedCard"), Padding = new Thickness(0), Margin = new Thickness(0, 0, 0, 12) };
+        var outer = new StackPanel();
+        var header = new DockPanel { Background = Brushes.Transparent, Cursor = Cursors.Hand, Margin = new Thickness(20, 14, 18, 14) };
+        var chevron = new TextBlock { Text = "", FontFamily = iconFont, FontSize = 14, VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(14, 0, 0, 0) };
+        chevron.SetResourceReference(TextBlock.ForegroundProperty, "OnSurfaceVariant");
+        DockPanel.SetDock(chevron, Dock.Right);
+        var count = new TextBlock { FontSize = 13, FontWeight = FontWeights.SemiBold, VerticalAlignment = VerticalAlignment.Center };
+        DockPanel.SetDock(count, Dock.Right);
+        var circle = new Border { Width = 36, Height = 36, CornerRadius = new CornerRadius(18), Margin = new Thickness(0, 0, 14, 0) };
+        circle.SetResourceReference(Border.BackgroundProperty, g.Risk ? "ErrorContainer" : "SecondaryContainer");
+        var icon = new TextBlock { Text = g.Icon, FontFamily = iconFont, FontSize = 16, HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Center };
+        icon.SetResourceReference(TextBlock.ForegroundProperty, g.Risk ? "OnErrorContainer" : "OnSecondaryContainer");
+        circle.Child = icon;
+        DockPanel.SetDock(circle, Dock.Left);
+        var title = new TextBlock { Text = g.Title + (g.Risk ? " — по умолчанию выключено" : ""), FontSize = 16, FontWeight = FontWeights.SemiBold,
+                                    VerticalAlignment = VerticalAlignment.Center, TextWrapping = TextWrapping.Wrap };
+        title.SetResourceReference(TextBlock.ForegroundProperty, g.Risk ? "Error" : "OnSurface");
+        header.Children.Add(chevron);
+        header.Children.Add(count);
+        header.Children.Add(circle);
+        header.Children.Add(title);
+
+        var body = new StackPanel { Visibility = Visibility.Collapsed };
+        foreach (var it in g.Items)
+        {
+            body.Children.Add(new Border { Style = (Style)Res("Divider") });
+            var cb = new CheckBox { Style = (Style)Res("Switch") };
+            var sp = new StackPanel();
+            sp.Children.Add(new TextBlock { Text = it.Title, Style = (Style)Res("BodyLarge") });
+            sp.Children.Add(new TextBlock { Text = it.Desc, Style = (Style)Res("BodyMedium"), Margin = new Thickness(0, 2, 0, 0) });
+            cb.Content = sp;
+            cb.Checked += delegate { if (!applyingProfile) SelectionChanged(); };
+            cb.Unchecked += delegate { if (!applyingProfile) SelectionChanged(); };
+            tweakBoxes[it.Id] = cb;
+            body.Children.Add(cb);
+        }
+        groupCounters.Add(() =>
+        {
+            int on = g.Items.Count(i => tweakBoxes[i.Id].IsChecked == true);
+            count.Text = on + " из " + g.Items.Count;
+            count.SetResourceReference(TextBlock.ForegroundProperty, on > 0 ? (g.Risk ? "Error" : "Primary") : "OnSurfaceVariant");
+        });
+        Action<bool> expand = open =>
+        {
+            body.Visibility = open ? Visibility.Visible : Visibility.Collapsed;
+            chevron.Text = open ? "" : "";
+        };
+        groupExpanders.Add(expand);
+        header.MouseLeftButtonUp += delegate { expand(body.Visibility != Visibility.Visible); };
+        outer.Children.Add(header);
+        outer.Children.Add(body);
+        card.Child = outer;
+        return card;
+    }
+
+    // ================================================================== benchmark
+    static string BackupPath { get { return Path.Combine(Program.DataDir, "backup.json"); } }
+
+    // key, title, glyph, unit, lower is better, decimals
+    static readonly string[][] Metrics =
+    {
+        new[] { "LatMed", "Задержка отклика", "", "мкс", "1", "0" },
+        new[] { "Cpu", "Фоновая загрузка CPU", "", "%", "1", "1" },
+        new[] { "RamGb", "Занято памяти", "", "ГБ", "1", "1" },
+        new[] { "Procs", "Процессов", "", "", "1", "0" },
+        new[] { "Services", "Работающих служб", "", "", "1", "0" },
+        new[] { "BootSec", "Загрузка Windows", "", "с", "1", "1" },
+        new[] { "Startup", "Автозагрузка", "", "программ", "1", "0" },
+        new[] { "DiskFreeGb", "Свободно на диске", "", "ГБ", "0", "1" }
     };
 
-    void BuildScopeChips()
+    bool benching;
+
+    void RunBench(bool asBaseline, Action then)
     {
-        var wrap = E<WrapPanel>("ScopeChips");
-        foreach (var s in Scope) wrap.Children.Add(Chip(s[0], s[1], "Primary"));
+        if (benching || busy) return;
+        benching = true;
+        E<Button>("BenchRun").IsEnabled = false;
+        E<TextBlock>("BenchHeroText").Text = "Измеряю… около 5 секунд. Лучше ничего не делать за компьютером.";
+        if (asBaseline) Navigate("NavBench");
+        ThreadPool.QueueUserWorkItem(_ =>
+        {
+            BenchSnapshot snap = null;
+            try { snap = Benchmark.Measure(); } catch { }
+            root.Dispatcher.BeginInvoke((Action)(() =>
+            {
+                benching = false;
+                E<Button>("BenchRun").IsEnabled = !busy;
+                var d = Benchmark.Load();
+                if (snap != null)
+                {
+                    if (asBaseline || (d.Baseline == null && !File.Exists(BackupPath))) d.Baseline = snap;
+                    d.Latest = snap;
+                    try { Benchmark.Save(d); } catch { }
+                }
+                else Snack("Замер не удался");
+                RefreshBench(d);
+                if (then != null) then();
+            }));
+        });
+    }
+
+    /// First start after a reboot that followed the optimization -> measure "after" automatically.
+    void AutoBenchAfterReboot()
+    {
+        var d = Benchmark.Load();
+        if (d.Baseline == null || !File.Exists(BackupPath)) return;
+        DateTime boot = Benchmark.BootTime;
+        if (File.GetLastWriteTime(BackupPath) > boot) return;            // not rebooted since optimizing
+        if (d.Latest != null && d.Latest.Time > boot) return;            // already measured this boot
+        var t = new DispatcherTimer { Interval = TimeSpan.FromSeconds(20) };   // let startup apps settle
+        t.Tick += delegate
+        {
+            t.Stop();
+            if (busy) return;
+            RunBench(false, () =>
+            {
+                var r = Benchmark.Load();
+                if (r.Baseline == null || r.Latest == null || r.Baseline.LatMed <= 0) return;
+                double imp = (r.Baseline.LatMed - r.Latest.LatMed) / r.Baseline.LatMed;
+                Snack("Замер после оптимизации готов" + (imp >= 0.03 ? ": отклик лучше на " + Math.Round(imp * 100) + "%" : ""),
+                      "Открыть", () => Navigate("NavBench"));
+            });
+        };
+        t.Start();
+    }
+
+    static string Fmt(double v, int dec) { return v.ToString(dec == 0 ? "N0" : "N" + dec); }
+
+    static string Diff(double before, double now, int dec, string unit)
+    {
+        double d = now - before;
+        string sign = d < 0 ? "−" : d > 0 ? "+" : "±";
+        return sign + Fmt(Math.Abs(d), dec) + (unit.Length > 0 ? " " + unit : "");
+    }
+
+    void RefreshBench(BenchData d)
+    {
+        var b = d.Baseline;
+        var n = d.Latest;
+        bool compare = b != null && n != null && n.Time > b.Time.AddSeconds(1);
+        var grid = E<UniformGrid>("BenchGrid");
+        grid.Children.Clear();
+        foreach (var m in Metrics) grid.Children.Add(BenchTile(m, compare ? b : null, n ?? b));
+
+        var title = E<TextBlock>("BenchHeroTitle");
+        var text = E<TextBlock>("BenchHeroText");
+        var score = E<FrameworkElement>("BenchHeroScore");
+        score.Visibility = Visibility.Collapsed;
+        E<Button>("BenchReset").IsEnabled = b != null || n != null;
+        if (b == null && n == null)
+        {
+            title.Text = "Замеров ещё нет";
+            text.Text = "Нажми «Измерить сейчас» — около 5 секунд. Перед первой оптимизацией замер «до» сделается сам и станет точкой отсчёта.";
+        }
+        else if (!compare)
+        {
+            title.Text = b != null ? "Точка отсчёта сохранена" : "Замер сохранён";
+            text.Text = b != null
+                ? "Замер «до»: " + b.Time.ToString("dd.MM.yyyy HH:mm") + ". Оптимизируй и перезагрузись — замер «после» сделается сам."
+                : "Оптимизация была раньше первого замера, поэтому сравнивать не с чем. Текущие показатели сохранены.";
+        }
+        else
+        {
+            double imp = b.LatMed > 0 ? (b.LatMed - n.LatMed) / b.LatMed : 0;
+            title.Text = imp >= 0.03 ? "Отклик системы лучше на " + Math.Round(imp * 100) + "%"
+                       : imp <= -0.03 ? "Отклик сейчас хуже — закрой программы и измерь снова"
+                       : "Отклик системы без заметных изменений";
+            text.Text = "До: " + b.Time.ToString("dd.MM HH:mm") + " · после: " + n.Time.ToString("dd.MM HH:mm") + ".  " +
+                        "Процессов " + Diff(b.Procs, n.Procs, 0, "") + ", служб " + Diff(b.Services, n.Services, 0, "") +
+                        ", памяти " + Diff(b.RamGb, n.RamGb, 1, "ГБ") + ".";
+            if (b.LatMed > 0)
+            {
+                score.Visibility = Visibility.Visible;
+                E<TextBlock>("BenchHeroValue").Text = (imp >= 0 ? "−" : "+") + Math.Round(Math.Abs(imp) * 100) + "%";
+                E<TextBlock>("BenchHeroCaption").Text = "задержка отклика";
+            }
+        }
+    }
+
+    FrameworkElement BenchTile(string[] m, BenchSnapshot before, BenchSnapshot now)
+    {
+        string key = m[0];
+        bool lower = m[4] == "1";
+        int dec = int.Parse(m[5]);
+        double nv = now == null ? -1 : now.Get(key), bv = before == null ? -1 : before.Get(key);
+
+        var card = new Border { CornerRadius = new CornerRadius(16), Padding = new Thickness(16, 14, 16, 14), Margin = new Thickness(0, 0, 12, 12) };
+        card.SetResourceReference(Border.BackgroundProperty, "Surface");
+        var sp = new StackPanel();
+        var head = new DockPanel();
+        var circle = new Border { Width = 32, Height = 32, CornerRadius = new CornerRadius(16), Margin = new Thickness(0, 0, 10, 0) };
+        circle.SetResourceReference(Border.BackgroundProperty, "SecondaryContainer");
+        var icon = new TextBlock { Text = m[2], FontFamily = iconFont, FontSize = 15, HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Center };
+        icon.SetResourceReference(TextBlock.ForegroundProperty, "OnSecondaryContainer");
+        circle.Child = icon;
+        head.Children.Add(circle);
+        head.Children.Add(new TextBlock { Text = m[1], Style = (Style)Res("LabelMedium"), VerticalAlignment = VerticalAlignment.Center, TextTrimming = TextTrimming.CharacterEllipsis });
+        sp.Children.Add(head);
+
+        var value = new TextBlock { FontFamily = (FontFamily)Res("DisplayFont"), FontSize = 26, Margin = new Thickness(0, 10, 0, 6) };
+        value.SetResourceReference(TextBlock.ForegroundProperty, "OnSurface");
+        value.Inlines.Add(new Run(nv >= 0 ? Fmt(nv, dec) : "—"));
+        if (nv >= 0 && m[3].Length > 0)
+        {
+            var unit = new Run(" " + m[3]) { FontSize = 14 };
+            unit.SetResourceReference(TextElement.ForegroundProperty, "OnSurfaceVariant");
+            value.Inlines.Add(unit);
+        }
+        sp.Children.Add(value);
+
+        var foot = new DockPanel { MinHeight = 24 };
+        string sub = "";
+        if (bv >= 0 && nv >= 0)
+        {
+            sub = "было " + Fmt(bv, dec);
+            double change = bv > 0 ? (nv - bv) / bv : 0;
+            bool neutral = Math.Abs(change) < 0.02;
+            double imp = lower ? -change : change;
+            var chip = new Border { CornerRadius = new CornerRadius(8), Padding = new Thickness(8, 2, 8, 2), VerticalAlignment = VerticalAlignment.Center };
+            var ct = new TextBlock { FontSize = 12, FontWeight = FontWeights.SemiBold,
+                                     Text = neutral ? "≈" : (change < 0 ? "−" : "+") + Math.Round(Math.Abs(change) * 100) + "%" };
+            chip.SetResourceReference(Border.BackgroundProperty, neutral ? "SurfaceContainerHighest" : imp > 0 ? "SuccessContainer" : "ErrorContainer");
+            ct.SetResourceReference(TextBlock.ForegroundProperty, neutral ? "OnSurfaceVariant" : imp > 0 ? "OnSuccessContainer" : "OnErrorContainer");
+            chip.Child = ct;
+            DockPanel.SetDock(chip, Dock.Right);
+            foot.Children.Add(chip);
+        }
+        else if (key == "LatMed" && now != null && now.LatP99 > 0) sub = "99-й перцентиль: " + Fmt(now.LatP99, 0) + " мкс";
+        else if (key == "BootSec" && nv < 0 && now != null) sub = "нет данных в журнале";
+        var st = new TextBlock { Text = sub, FontSize = 12, VerticalAlignment = VerticalAlignment.Center };
+        st.SetResourceReference(TextBlock.ForegroundProperty, "OnSurfaceVariant");
+        foot.Children.Add(st);
+        sp.Children.Add(foot);
+        card.Child = sp;
+        return card;
+    }
+
+    static BenchData DemoBench()
+    {
+        var now = DateTime.Now;
+        return new BenchData
+        {
+            Baseline = new BenchSnapshot { Time = now.AddHours(-1), LatMed = 96, LatP99 = 410, Cpu = 6.8, RamGb = 5.9, Procs = 214, Services = 121, BootSec = 38.4, Startup = 9, DiskFreeGb = 112.3 },
+            Latest = new BenchSnapshot { Time = now, LatMed = 61, LatP99 = 190, Cpu = 2.9, RamGb = 4.6, Procs = 158, Services = 97, BootSec = 24.1, Startup = 9, DiskFreeGb = 118.7 }
+        };
     }
 
     FrameworkElement Chip(string glyph, string text, string iconBrush)
@@ -572,21 +913,23 @@ class MainUi
     void ConfirmOptimize()
     {
         if (busy) { Navigate("NavLog"); return; }
-        bool vbs = E<CheckBox>("OptVbs").IsChecked == true, mit = E<CheckBox>("OptMit").IsChecked == true;
-        bool apps = E<CheckBox>("OptApps").IsChecked == true, duck = E<CheckBox>("OptDuck").IsChecked == true;
-        var text = new StringBuilder("Будет создана точка восстановления и точный бэкап всех изменяемых настроек. После завершения нужна перезагрузка.");
-        if (!apps) text.Append("\n\nПрограммы устанавливаться не будут.");
+        var sel = Selection();
+        if (sel.Count == 0) { Navigate("NavOptimize"); Snack("Выбери профиль или хотя бы один твик"); return; }
+        var match = catalog.Match(sel, lowRam);
+        bool vbs = sel.Contains("risk.vbs"), mit = sel.Contains("risk.mitigations");
+        bool needBaseline = Benchmark.Load().Baseline == null && !File.Exists(BackupPath);
+        var text = new StringBuilder((match != null ? "Профиль «" + match.Title + "»" : "Свой набор") + ": " + sel.Count + " из " + tweakBoxes.Count +
+                                     " твиков.\n\nБудет создана точка восстановления и точный бэкап всех изменяемых настроек. После завершения нужна перезагрузка.");
+        if (needBaseline) text.Append("\n\nСначала сделаю замер «до» (около 5 секунд), чтобы потом показать разницу.");
         if (vbs || mit)
             text.Append("\n\nВключены рискованные пункты: " + (vbs ? "VBS выключится (WSL2, Docker и Hyper-V перестанут работать)" : "") +
                         (vbs && mit ? "; " : "") + (mit ? "защита от Spectre/Meltdown выключится" : "") + ".");
         Dialog("", "Запустить оптимизацию?", text.ToString(), "Запустить", () =>
         {
-            var a = new List<string> { "-Yes" };
-            if (!apps) a.Add("-NoApps");
-            if (!duck) a.Add("-NoDuck");
-            if (vbs) a.Add("-DisableVBS");
-            if (mit) a.Add("-DisableMitigations");
-            RunJob("Оптимизация", "Ultimate-Optimizer.ps1", string.Join(" ", a), code => RebootSnack(code));
+            Catalog.SaveSelection(sel);
+            string args = "-Yes -Only " + string.Join(",", sel.OrderBy(x => x));
+            Action start = () => RunJob("Оптимизация", "Ultimate-Optimizer.ps1", args, code => RebootSnack(code));
+            if (needBaseline) RunBench(true, start); else start();
         }, vbs || mit);
     }
 
@@ -787,7 +1130,7 @@ class MainUi
     void SetBusy(bool b)
     {
         busy = b;
-        foreach (var n in new[] { "FabOptimize", "HomeOptimize", "OptRun", "ToolRepair", "ToolNet", "ToolReport", "ToolDuck" })
+        foreach (var n in new[] { "FabOptimize", "HomeOptimize", "OptRun", "ToolRepair", "ToolNet", "ToolReport", "ToolDuck", "BenchRun", "TweaksReset" })
             E<Button>(n).IsEnabled = !b;
         if (b) { E<Button>("HomeUndo").IsEnabled = false; E<Button>("OptUndo").IsEnabled = false; }
         var host = E<Grid>("ProgressHost");
@@ -1062,7 +1405,11 @@ class MainUi
                 ShowBanner(new ReleaseInfo { Version = new Version(9, 9, 0), Tag = "v9.9.0" });
                 Shot(dir, "update" + sfx);
                 E<Border>("UpdateBanner").Visibility = Visibility.Collapsed;
-                Navigate("NavOptimize"); E<CheckBox>("OptVbs").IsChecked = false; Shot(dir, "optimize" + sfx);
+                ApplySelection(catalog.ForProfile(catalog.Profiles[0], lowRam));
+                groupExpanders[0](true);
+                Navigate("NavOptimize"); Shot(dir, "optimize" + sfx);
+                groupExpanders[0](false);
+                Navigate("NavBench"); RefreshBench(DemoBench()); Shot(dir, "bench" + sfx);
                 Navigate("NavTools"); Shot(dir, "tools" + sfx);
 
                 Navigate("NavLog");
@@ -1087,12 +1434,12 @@ class MainUi
                 E<Border>("Snackbar").Visibility = Visibility.Collapsed;
 
                 Navigate("NavOptimize");
-                E<CheckBox>("OptVbs").IsChecked = true;
+                tweakBoxes["risk.vbs"].IsChecked = true;
                 Dialog("", "Запустить оптимизацию?", "Будет создана точка восстановления и точный бэкап всех изменяемых настроек. После завершения нужна перезагрузка.",
                        "Запустить", () => { }, true);
                 Shot(dir, "dialog" + sfx);
                 HideDialog();
-                E<CheckBox>("OptVbs").IsChecked = false;
+                tweakBoxes["risk.vbs"].IsChecked = false;
 
                 Navigate("NavAbout"); Shot(dir, "about" + sfx);
             }

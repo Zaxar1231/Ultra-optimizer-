@@ -30,6 +30,8 @@ class SysInfo
         return list;
     }
 
+    public static int Count(string scope, string wql) { return Q(scope, wql).Count; }
+
     static string S(ManagementBaseObject o, string p)
     {
         try { object v = o[p]; return v == null ? "" : v.ToString().Trim(); } catch { return ""; }

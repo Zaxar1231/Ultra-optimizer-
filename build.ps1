@@ -37,6 +37,19 @@ foreach ($f in Get-ChildItem $src -File) {
     }
 }
 
+# ---- 1b. the tweak catalog (app) and the script must know the same tweak ids
+$cat = Get-Content (Join-Path $root 'launcher/ui/tweaks.json') -Raw -Encoding UTF8 | ConvertFrom-Json
+$catIds = @($cat.groups | ForEach-Object { $_.items } | ForEach-Object { $_.id })
+$scriptText = Get-Content (Join-Path $src 'Ultimate-Optimizer.ps1') -Raw
+$scriptIds = @([regex]::Matches($scriptText, "Use '([a-z.]+)'") | ForEach-Object { $_.Groups[1].Value } | Sort-Object -Unique)
+$profIds = @($cat.profiles | ForEach-Object { @($_.exclude) + @($_.include) } | Where-Object { $_ })
+$bad = @($catIds | Where-Object { $_ -notin $scriptIds } | ForEach-Object { "in tweaks.json but not in the script: $_" }) +
+       @($scriptIds | Where-Object { $_ -notin $catIds } | ForEach-Object { "in the script but not in tweaks.json: $_" }) +
+       @($profIds | Where-Object { $_ -notin $catIds } | ForEach-Object { "profile uses unknown id: $_" }) +
+       @($catIds | Group-Object | Where-Object Count -gt 1 | ForEach-Object { "duplicate id: $($_.Name)" })
+if ($bad.Count) { throw ("tweak catalog mismatch:`n" + ($bad -join "`n")) }
+Write-Host "tweak catalog: $($catIds.Count) tweaks, $(@($cat.profiles).Count) profiles - OK"
+
 # ---- 2. compile the WPF app with all staged files + UI embedded
 $buildInfo = Join-Path $gen 'BuildInfo.cs'
 "static class BuildInfo { public const string Version = `"$Version`"; }" | Set-Content $buildInfo -Encoding UTF8

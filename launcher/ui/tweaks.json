@@ -1,0 +1,119 @@
+{
+  "groups": [
+    {
+      "id": "power", "title": "Питание", "icon": "E7E8",
+      "items": [
+        { "id": "power.plan", "title": "План питания «Ultimate Optimizer»", "desc": "На зарядке: без парковки ядер, агрессивный турбобуст, без засыпания USB, NVMe и PCIe. На батарее план экономный.", "default": true },
+        { "id": "power.faststartup", "title": "Выключить быстрый запуск", "desc": "Чистая загрузка вместо полугибернации: меньше глюков с драйверами после выключения.", "default": true },
+        { "id": "power.hibernate", "title": "Выключить гибернацию на ПК", "desc": "Освобождает на диске место, равное объёму ОЗУ. На ноутбуке гибернация всегда остаётся.", "default": true },
+        { "id": "power.throttling", "title": "Выключить Power Throttling", "desc": "Windows не будет урезать частоту фоновым программам (OBS, Discord, стримы).", "default": true },
+        { "id": "power.nic", "title": "Сетевая карта без энергосбережения", "desc": "Отключает EEE, Green Ethernet и засыпание Wi-Fi: стабильнее пинг.", "default": true },
+        { "id": "power.diag", "title": "Без диагностики питания и ночных пробуждений", "desc": "Отключает логи SleepStudy и пробуждение ПК для обслуживания.", "default": true }
+      ]
+    },
+    {
+      "id": "cpu", "title": "Процессор и задержки", "icon": "E950",
+      "items": [
+        { "id": "cpu.priority", "title": "Приоритет активного окна", "desc": "Win32PrioritySeparation = 38 (как в AtlasOS): игра в фокусе получает больше процессорного времени.", "default": true },
+        { "id": "cpu.mmcss", "title": "MMCSS: приоритет игр", "desc": "Планировщик мультимедиа отдаёт играм высокий приоритет CPU, GPU и диска.", "default": true },
+        { "id": "cpu.timer", "title": "Точные таймеры", "desc": "Выключает dynamic tick, на Windows 11 включает глобальное разрешение таймера. Меньше микрофризов.", "default": true },
+        { "id": "cpu.fth", "title": "Выключить Fault Tolerant Heap", "desc": "Windows не будет «лечить» падавшие программы медленной кучей памяти.", "default": true },
+        { "id": "fs.lastaccess", "title": "NTFS без записи времени доступа", "desc": "Меньше лишних записей на диск при каждом чтении файла.", "default": true },
+        { "id": "svc.split", "title": "Группировка служб svchost", "desc": "Меньше процессов svchost.exe и меньше занятой памяти (как в AtlasOS).", "default": true },
+        { "id": "net.throttle", "title": "Без ограничения сети", "desc": "Снимает ограничение сетевого трафика при воспроизведении мультимедиа и для SMB.", "default": true }
+      ]
+    },
+    {
+      "id": "gpu", "title": "Игры и видеокарта", "icon": "E7FC",
+      "items": [
+        { "id": "gpu.hags", "title": "Аппаратное планирование GPU (HAGS)", "desc": "Видеокарта сама управляет своей памятью: меньше задержка ввода. Нужен Windows 10 2004+.", "default": true },
+        { "id": "gpu.gamemode", "title": "Игровой режим Windows", "desc": "Во время игры Windows не ставит обновления и не запускает фоновые задачи.", "default": true },
+        { "id": "gpu.gamedvr", "title": "Выключить Game DVR", "desc": "Фоновая запись игр Xbox Game Bar съедает FPS. Сам Game Bar остаётся.", "default": true },
+        { "id": "gpu.flipmodel", "title": "Оптимизация оконных игр", "desc": "Flip model и VRR для игр в окне и без рамки (Windows 11).", "default": true },
+        { "id": "gpu.msi", "title": "MSI-режим прерываний видеокарты", "desc": "Прерывания через сообщения вместо линий IRQ: ниже задержка.", "default": true },
+        { "id": "gpu.vendor", "title": "Настройки NVIDIA / AMD", "desc": "NVIDIA: без телеметрии драйвера. AMD: выключен ULPS (сон второй GPU), меньше статтеров.", "default": true }
+      ]
+    },
+    {
+      "id": "ui", "title": "Интерфейс и мышь", "icon": "E771",
+      "items": [
+        { "id": "ui.effects", "title": "Быстрые визуальные эффекты", "desc": "Пресет AtlasOS: без анимаций окон и панели задач, сглаживание шрифтов остаётся.", "default": true },
+        { "id": "ui.transparency", "title": "Выключить прозрачность", "desc": "Экономит видеопамять и ОЗУ. По умолчанию включается на ПК с 8 ГБ ОЗУ и меньше.", "default": false, "lowRam": true },
+        { "id": "ui.menus", "title": "Мгновенные меню и быстрое выключение", "desc": "Меню без задержки, зависшие программы закрываются за 2 секунды, автозагрузка без паузы.", "default": true },
+        { "id": "ui.mouse", "title": "Без акселерации мыши", "desc": "Курсор двигается ровно на столько, на сколько двигаешь мышь. Важно для шутеров.", "default": true },
+        { "id": "ui.bgapps", "title": "Без фоновых приложений", "desc": "Приложения из Microsoft Store не работают в фоне, пока закрыты.", "default": true },
+        { "id": "ui.search", "title": "Индексация не мешает в игре", "desc": "Поиск Windows приостанавливает индексацию в игровом режиме и на батарее.", "default": true }
+      ]
+    },
+    {
+      "id": "privacy", "title": "Телеметрия и реклама", "icon": "E72E",
+      "items": [
+        { "id": "privacy.telemetry", "title": "Выключить телеметрию", "desc": "Политики сбора данных, DiagTrack, CEIP, эксперименты Microsoft.", "default": true },
+        { "id": "privacy.appcompat", "title": "Без отслеживания совместимости", "desc": "Помощник совместимости и инвентаризация программ.", "default": true },
+        { "id": "privacy.wer", "title": "Без отчётов об ошибках", "desc": "Windows не собирает и не отправляет дампы падений.", "default": true },
+        { "id": "privacy.activity", "title": "Без истории действий и сбора ввода", "desc": "Временная шкала, история запуска программ, сбор рукописного и набранного текста.", "default": true },
+        { "id": "privacy.ads", "title": "Без рекламы и тихой установки приложений", "desc": "Советы, рекомендации в «Пуске», рекламный ID, автоустановка Candy Crush и т. п.", "default": true },
+        { "id": "privacy.do", "title": "Без раздачи обновлений (P2P)", "desc": "Delivery Optimization не раздаёт обновления другим компьютерам через твой интернет.", "default": true },
+        { "id": "privacy.ai", "title": "Выключить Copilot и Recall", "desc": "Без ИИ-помощника и снимков экрана Recall (Windows 11).", "default": true },
+        { "id": "privacy.widgets", "title": "Без виджетов и новостей", "desc": "Панель виджетов и «Новости и интересы» на панели задач.", "default": true }
+      ]
+    },
+    {
+      "id": "svc", "title": "Службы и задачи", "icon": "E713",
+      "items": [
+        { "id": "svc.telemetry", "title": "Службы телеметрии", "desc": "DiagTrack, сборщик диагностики, отчёты об ошибках, PCA.", "default": true },
+        { "id": "svc.misc", "title": "Ненужные службы", "desc": "Отслеживание ссылок, карты, демо-режим магазина, GpuEnergyDrv. Сеть и общий доступ не трогаются.", "default": true },
+        { "id": "svc.search", "title": "Индексация вручную на слабом ПК", "desc": "Срабатывает только если Windows на HDD и ОЗУ 4 ГБ или меньше.", "default": true },
+        { "id": "tasks.telemetry", "title": "Задачи сбора данных в планировщике", "desc": "Compatibility Appraiser, CEIP, диагностика дисков, Feedback.", "default": true }
+      ]
+    },
+    {
+      "id": "apps", "title": "Приложения и очистка", "icon": "E71D",
+      "items": [
+        { "id": "apps.junk", "title": "Удалить предустановленный мусор", "desc": "Teams, Clipchamp, Bing-приложения, Solitaire, TikTok, Candy Crush и т. п. Store, Xbox, Фото, Калькулятор остаются. Откат возвращает удалённое.", "default": true },
+        { "id": "clean.temp", "title": "Очистка и TRIM", "desc": "Временные файлы, старые компоненты обновлений, TRIM для SSD, сброс DNS-кэша.", "default": true }
+      ]
+    },
+    {
+      "id": "soft", "title": "Программы", "icon": "E896",
+      "items": [
+        { "id": "soft.runtimes", "title": "Visual C++ и DirectX", "desc": "Исправляют ошибки «не найден msvcp140.dll / d3dx9_43.dll» в играх.", "default": true },
+        { "id": "soft.tools", "title": "Полезные утилиты", "desc": "HWiNFO, Process Lasso, Autoruns, CrystalDiskInfo, 7-Zip (через winget).", "default": true },
+        { "id": "soft.afterburner", "title": "MSI Afterburner", "desc": "Мониторинг FPS и андервольтинг. Ставится только при видеокарте NVIDIA или AMD.", "default": true },
+        { "id": "soft.vendor", "title": "Утилита производителя ноутбука", "desc": "G-Helper для ASUS, Legion Toolkit для Lenovo — легче родных утилит.", "default": true },
+        { "id": "soft.nvidia", "title": "Профиль драйвера NVIDIA", "desc": "Максимальная производительность, Low Latency, без V-Sync, кэш шейдеров без лимита.", "default": true },
+        { "id": "soft.duck", "title": "Скачать optimizerDuck", "desc": "Последний релиз с GitHub в C:\\Tools\\optimizerDuck с проверкой SHA-256. Только скачивается.", "default": true }
+      ]
+    },
+    {
+      "id": "risk", "title": "Рискованное", "icon": "E7BA", "risk": true,
+      "items": [
+        { "id": "risk.vbs", "title": "Выключить VBS / Memory Integrity", "desc": "+5–15% FPS, но перестанут работать WSL2, Docker, Hyper-V и песочница Windows.", "default": false },
+        { "id": "risk.mitigations", "title": "Выключить защиту от Spectre / Meltdown", "desc": "Прирост заметен в основном на процессорах до 2019 года. Снижает безопасность.", "default": false }
+      ]
+    }
+  ],
+  "profiles": [
+    {
+      "id": "games", "title": "Игры", "icon": "E7FC",
+      "desc": "Всё для максимального FPS и минимальной задержки. Рекомендуется.",
+      "exclude": []
+    },
+    {
+      "id": "laptop", "title": "Ноутбук", "icon": "E83F",
+      "desc": "Быстро, но бережёт батарею: план питания и таймеры Windows остаются.",
+      "exclude": ["power.plan", "power.throttling", "power.nic", "cpu.timer", "soft.tools", "soft.afterburner", "soft.nvidia", "soft.duck"]
+    },
+    {
+      "id": "work", "title": "Работа и учёба", "icon": "E821",
+      "desc": "Чистая и тихая система: без телеметрии и мусора, игровые настройки не трогаются.",
+      "exclude": ["power.plan", "power.throttling", "cpu.timer", "cpu.mmcss", "gpu.hags", "gpu.gamemode", "gpu.flipmodel", "gpu.msi", "ui.mouse", "net.throttle", "soft.tools", "soft.afterburner", "soft.nvidia", "soft.duck"]
+    },
+    {
+      "id": "weak", "title": "Слабый ПК", "icon": "E7F4",
+      "desc": "Максимум облегчения: минимум эффектов, фоновых задач и программ.",
+      "exclude": ["soft.tools", "soft.afterburner", "soft.duck"],
+      "include": ["ui.transparency"]
+    }
+  ]
+}
