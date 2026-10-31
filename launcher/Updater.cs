@@ -63,10 +63,30 @@ static class Updater
     }
 
     /// Latest published release, or throws.
+    /// The REST API allows only 60 anonymous requests per hour per IP (shared IPs hit that quickly),
+    /// so on any API error fall back to the releases/latest redirect + direct download links.
     public static ReleaseInfo Latest()
     {
         EnableTls();
-        return Parse(GetString("https://api.github.com/repos/" + Repo + "/releases/latest"));
+        try { return Parse(GetString("https://api.github.com/repos/" + Repo + "/releases/latest")); }
+        catch (WebException) { return LatestViaRedirect(); }
+    }
+
+    static ReleaseInfo LatestViaRedirect()
+    {
+        var req = Request("https://github.com/" + Repo + "/releases/latest");
+        req.AllowAutoRedirect = false;
+        req.Method = "HEAD";
+        string location;
+        using (var resp = (HttpWebResponse)req.GetResponse()) location = resp.Headers["Location"];
+        var m = Regex.Match(location ?? "", @"/releases/tag/(v?\d+(\.\d+){1,3})$");
+        if (!m.Success) throw new InvalidDataException("не удалось узнать последнюю версию");
+        string tag = m.Groups[1].Value, dl = "https://github.com/" + Repo + "/releases/download/" + tag + "/";
+        return new ReleaseInfo
+        {
+            Tag = tag, Version = new Version(tag.TrimStart('v')), Notes = "", PageUrl = "https://github.com/" + Repo + "/releases/tag/" + tag,
+            ExeUrl = dl + AssetName, SumsUrl = dl + "SHA256SUMS.txt"
+        };
     }
 
     public static ReleaseInfo Parse(string text)
