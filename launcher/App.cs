@@ -761,12 +761,11 @@ class MainUi
     {
         const int w = 1160, h = 760;
         Trace("shot " + name);
-        Pump(450);                                   // let animations settle while hosted in the window
-        bool hosted = Window != null && Window.Content == root;
-        if (hosted) Window.Content = null;           // the CI screen may be narrower than the window -> lay out detached
+        Pump(100);
         root.Measure(new Size(w, h));
         root.Arrange(new Rect(0, 0, w, h));
         root.UpdateLayout();
+        Settle(root);
         Pump(0);
         var bmp = new RenderTargetBitmap(w * 3 / 2, h * 3 / 2, 144, 144, PixelFormats.Pbgra32);
         bmp.Render(root);
@@ -774,7 +773,34 @@ class MainUi
         enc.Frames.Add(BitmapFrame.Create(bmp));
         using (var f = File.Create(Path.Combine(dir, name + ".png"))) enc.Save(f);
         Trace("saved " + name);
-        if (hosted) Window.Content = root;
+    }
+
+    /// Detached rendering has no animation clock: put template animations into their final state.
+    static void Settle(DependencyObject d)
+    {
+        for (int i = 0; i < VisualTreeHelper.GetChildrenCount(d); i++)
+        {
+            var c = VisualTreeHelper.GetChild(d, i);
+            var rb = c as RadioButton;
+            if (rb != null && rb.Template != null)
+            {
+                var pill = rb.Template.FindName("Pill", rb) as Border;
+                if (pill != null)
+                {
+                    bool on = rb.IsChecked == true;
+                    pill.BeginAnimation(UIElement.OpacityProperty, null);
+                    pill.Opacity = on ? 1 : 0;
+                    pill.RenderTransform = new ScaleTransform(on ? 1 : 0.4, 1);
+                }
+            }
+            var cb = c as CheckBox;
+            if (cb != null && cb.Template != null)
+            {
+                var thumb = cb.Template.FindName("ThumbHost", cb) as FrameworkElement;
+                if (thumb != null) thumb.RenderTransform = new TranslateTransform(cb.IsChecked == true ? 20 : 0, 0);
+            }
+            Settle(c);
+        }
     }
 
     public int SaveScreenshots(string dir)
@@ -787,15 +813,6 @@ class MainUi
             FillInfo(SysInfo.Collect());
             Trace("sysinfo ok");
 
-            // host the UI in an off-screen window so templates, bindings and animations run like in real use
-            root.Width = 1160;
-            root.Height = 760;
-            Window = new Window
-            {
-                Content = root, SizeToContent = SizeToContent.WidthAndHeight, Left = -20000, Top = -20000,
-                WindowStyle = WindowStyle.None, ResizeMode = ResizeMode.NoResize, ShowInTaskbar = false, ShowActivated = false
-            };
-            try { Window.Show(); Trace("window shown"); } catch (Exception ex) { Window.Content = null; Trace("no window: " + ex.Message); }
 
             foreach (bool dark in new[] { false, true })
             {
@@ -840,7 +857,6 @@ class MainUi
 
                 Navigate("NavAbout"); Shot(dir, "about" + sfx);
             }
-            if (Window.IsVisible) Window.Close();
             Trace("done");
             return 0;
         }
