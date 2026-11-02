@@ -43,6 +43,24 @@ $GUI = [bool]$env:UO_GUI
 function Step($t) { if ($GUI) { Write-Host "##step $t" } else { Write-Host "`n>>> $t" -ForegroundColor Cyan } }
 function Ok($t)   { if ($GUI) { Write-Host "##ok $t" }   else { Write-Host "    $t" -ForegroundColor Green } }
 function Warn($t) { if ($GUI) { Write-Host "##warn $t" } else { Write-Host "    $t" -ForegroundColor Yellow } }
+# Runs a slow console tool hidden, prints a heartbeat every 30 s and stops it after $limit seconds.
+function Run-Long($label, $exe, $argLine, $limit) {
+    Write-Host "    $label - may take several minutes..."
+    try { $pr = Start-Process -FilePath $exe -ArgumentList $argLine -WindowStyle Hidden -PassThru -ErrorAction Stop }
+    catch { Warn "$label could not start: $($_.Exception.Message)"; return $false }
+    $null = $pr.Handle    # keeps ExitCode readable after the process ends
+    $sw = [Diagnostics.Stopwatch]::StartNew()
+    while (-not $pr.WaitForExit(30000)) {
+        if ($sw.Elapsed.TotalSeconds -ge $limit) {
+            try { $pr.Kill() } catch {}
+            Warn ("$label stopped after {0} min - Windows finishes it on its own during idle maintenance" -f [int]($limit / 60))
+            return $false
+        }
+        Write-Host ("    ... {0} still working ({1}:{2:00})" -f $label, [int]$sw.Elapsed.TotalMinutes, $sw.Elapsed.Seconds)
+    }
+    if ($pr.ExitCode -ne 0) { Warn "$label exit code $($pr.ExitCode)"; return $false }
+    return $true
+}
 function Ask($q)  { if ($Yes) { return $false }; (Read-Host "$q [y/N]") -match '^(y|yes|d|da)$' }
 
 # =====================================================================
@@ -926,10 +944,14 @@ Save-BK
 # =====================================================================
 if (Use 'clean.temp') {
     Step "Cleanup: temp files, component store, TRIM"
-    Remove-Item "$env:TEMP\*", "$env:SystemRoot\Temp\*" -Recurse -Force
-    Dism.exe /Online /Cleanup-Image /StartComponentCleanup /Quiet
-    if (-not $onHDD) { Optimize-Volume -DriveLetter $env:SystemDrive[0] -ReTrim } else { Ok "HDD: run defrag weekly (Windows does it automatically)" }
+    Remove-Item "$env:TEMP\*", "$env:SystemRoot\Temp\*" -Recurse -Force -ErrorAction SilentlyContinue
+    Ok "temp files removed (files in use are skipped)"
     ipconfig /flushdns | Out-Null
+    if (-not $onHDD) {
+        if (Run-Long 'TRIM' "$env:SystemRoot\System32\defrag.exe" "$($env:SystemDrive) /L" 300) { Ok "TRIM done" }
+    } else { Ok "HDD: run defrag weekly (Windows does it automatically)" }
+    # Component store cleanup can take 10-60 min on a PC with many updates; cap it so the run never looks frozen
+    if (Run-Long 'Component store cleanup (DISM)' "$env:SystemRoot\System32\Dism.exe" '/Online /Cleanup-Image /StartComponentCleanup /Quiet /NoRestart' 900) { Ok "old update components removed" }
     Ok "done"
 }
 

@@ -1217,7 +1217,11 @@ partial class MainUi
         }
         ThreadPool.QueueUserWorkItem(_ =>
         {
-            p.WaitForExit();             // also waits for the async output readers to drain
+            // WaitForExit() with no timeout also waits until stdout closes. A program the script started
+            // (an installer that launches its app) can inherit that pipe and keep it open forever,
+            // so wait for the process itself and give the output readers a moment to drain.
+            while (!p.WaitForExit(1000)) { }
+            Thread.Sleep(1500);
             int code = p.ExitCode;
             p.Dispose();
             root.Dispatcher.BeginInvoke((Action)(() => Finish(code, title, done)));
