@@ -207,7 +207,7 @@ partial class MainUi
         var status = E<TextBlock>("DiskStatus");
         var sw = Stopwatch.StartNew();
         var timer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(250) };
-        timer.Tick += delegate { status.Text = "Сканирую " + diskDrive + " · " + s.Files.ToString("N0") + " файлов · " + s.Current; };
+        timer.Tick += delegate { status.Text = "Сканирую " + diskDrive + " · " + s.Files.ToString("N0", Cleaner.Ru) + " файлов · " + s.Current; };
         timer.Start();
         string drive = diskDrive;
         Background(false, () =>
@@ -225,7 +225,7 @@ partial class MainUi
             E<Button>("DiskScan").IsEnabled = true;
             E<Button>("DiskCancel").Visibility = Visibility.Collapsed;
             if (ex != null) { status.Text = "Сканирование не удалось: " + ex.Message; scan = null; return; }
-            status.Text = (s.Cancel ? "Остановлено. " : "") + "Просканировано " + s.Files.ToString("N0") + " файлов в " + s.Dirs.ToString("N0") + " папках за " +
+            status.Text = (s.Cancel ? "Остановлено. " : "") + "Просканировано " + s.Files.ToString("N0", Cleaner.Ru) + " файлов в " + s.Dirs.ToString("N0", Cleaner.Ru) + " папках за " +
                           Math.Round(sw.Elapsed.TotalSeconds) + " с. Нажми на папку, чтобы зайти внутрь. Размер системных папок может быть завышен из-за жёстких ссылок WinSxS.";
             diskNode = s.Root;
             ShowDiskSummary();
@@ -270,7 +270,7 @@ partial class MainUi
             E<Button>("DiskUp").IsEnabled = diskNode.Parent != null;
             long parent = Math.Max(1, diskNode.Size);
             foreach (var c in diskNode.Children.Where(c => c.Size > 0).Take(200))
-                list.Children.Add(DiskRow(c.FullPath, c.Name, c.Size, parent, (c.Denied ? "нет доступа · " : "") + c.FileCount.ToString("N0") + " файлов в папке", true, c));
+                list.Children.Add(DiskRow(c.FullPath, c.Name, c.Size, parent, (c.Denied ? "нет доступа · " : "") + c.FileCount.ToString("N0", Cleaner.Ru) + " файлов в папке", true, c));
             var own = DiskScan.FilesIn(diskNode.FullPath, 100);
             foreach (var f in own)
                 list.Children.Add(DiskRow(f.Path, Path.GetFileName(f.Path), f.Size, parent, "файл · изменён " + f.Modified.ToString("dd.MM.yyyy"), false, null));

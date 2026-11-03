@@ -28,7 +28,7 @@ class JunkCategory
 static class Cleaner
 {
     // ================================================================== formatting
-    static readonly CultureInfo Ru = new CultureInfo("ru-RU");
+    public static readonly CultureInfo Ru = new CultureInfo("ru-RU");
 
     public static string Size(long b)
     {
