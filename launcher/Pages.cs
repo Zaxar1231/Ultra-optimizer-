@@ -31,6 +31,8 @@ partial class MainUi
         Click("AppsRemove", ConfirmRemoveApps);
         E<Button>("AppsRemove").IsEnabled = false;
 
+        InitClean();
+
         Click("NetPing", () => RunPing(false));
         Click("DnsTest", () => TestDns(false));
         Click("NetOptimize", ConfirmNetOptimize);

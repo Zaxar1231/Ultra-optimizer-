@@ -289,7 +289,7 @@ partial class MainUi
         root = (FrameworkElement)Program.LoadXaml("ui/MainWindow.xaml");
         iconFont = (FontFamily)Application.Current.FindResource("IconFont");
         textFont = (FontFamily)Application.Current.FindResource("TextFont");
-        foreach (var p in new[] { "PageHome", "PageOptimize", "PageCustomize", "PageNetwork", "PageBench", "PageStartup", "PageTasks", "PageApps", "PageTools", "PageLog", "PageAbout" }) pages[p] = E<FrameworkElement>(p);
+        foreach (var p in new[] { "PageHome", "PageOptimize", "PageClean", "PageCustomize", "PageNetwork", "PageBench", "PageStartup", "PageTasks", "PageApps", "PageTools", "PageLog", "PageAbout" }) pages[p] = E<FrameworkElement>(p);
         Wire();
         BuildTweaks();
         BuildCustomize();
@@ -377,7 +377,7 @@ partial class MainUi
 
     void Wire()
     {
-        foreach (var pair in new[] { new[] { "NavHome", "PageHome" }, new[] { "NavOptimize", "PageOptimize" }, new[] { "NavCustomize", "PageCustomize" }, new[] { "NavNetwork", "PageNetwork" }, new[] { "NavBench", "PageBench" }, new[] { "NavTools", "PageTools" },
+        foreach (var pair in new[] { new[] { "NavHome", "PageHome" }, new[] { "NavOptimize", "PageOptimize" }, new[] { "NavClean", "PageClean" }, new[] { "NavCustomize", "PageCustomize" }, new[] { "NavNetwork", "PageNetwork" }, new[] { "NavBench", "PageBench" }, new[] { "NavTools", "PageTools" },
                                      new[] { "NavLog", "PageLog" }, new[] { "NavAbout", "PageAbout" } })
         {
             string page = pair[1];
@@ -400,9 +400,6 @@ partial class MainUi
         Click("ToolReport", () => RunJob("Отчёт о ПК", "PC-Info-Mail.ps1", "-NoMail",
             code => Snack(code == 0 ? "Отчёт открыт в браузере" : "Не удалось собрать отчёт — подробности в журнале")));
         Click("ToolReportSend", () => Program.RunConsole("PC-Info-Mail.ps1", ""));
-        Click("ToolClean", () => Dialog("\uE74D", "Почистить систему?",
-            "Удалятся временные файлы, старые компоненты обновлений Windows, кэш DNS; для SSD выполнится TRIM. Личные файлы и корзина не трогаются.",
-            "Очистить", () => RunJob("Очистка", "Ultimate-Optimizer.ps1", "-Yes -NoRestorePoint -Only clean.temp", null), false));
         Click("ToolCleanMgr", () => Program.Open("cleanmgr.exe"));
         Click("CzRestartExplorer", () =>
         {
@@ -1243,10 +1240,10 @@ partial class MainUi
     void SetBusy(bool b)
     {
         busy = b;
-        foreach (var n in new[] { "FabOptimize", "HomeOptimize", "OptRun", "ToolRepair", "ToolNet", "ToolReport", "ToolClean", "BenchRun", "TweaksReset", "NetOptimize", "AppsRemove" })
+        foreach (var n in new[] { "FabOptimize", "HomeOptimize", "OptRun", "ToolRepair", "ToolNet", "ToolReport", "JunkDeep", "BenchRun", "TweaksReset", "NetOptimize", "AppsRemove" })
             E<Button>(n).IsEnabled = !b;
         if (b) { E<Button>("HomeUndo").IsEnabled = false; E<Button>("OptUndo").IsEnabled = false; }
-        else UpdateRemoveButton();
+        else { UpdateRemoveButton(); UpdateUninstallButton(); }
         var host = E<Grid>("ProgressHost");
         var bar = E<Border>("ProgressBar");
         if (b)
@@ -1534,6 +1531,12 @@ partial class MainUi
                 Navigate("NavBench"); RefreshBench(DemoBench()); Shot(dir, "bench" + sfx);
                 Navigate("NavCustomize"); Shot(dir, "customize" + sfx);
                 Navigate("NavNetwork"); DemoNetwork(); Shot(dir, "network" + sfx);
+                Navigate("NavClean"); DemoClean("junk"); Shot(dir, "clean" + sfx);
+                DemoClean("disk"); Shot(dir, "clean-disk" + sfx);
+                if (!dark) LoadProgs(true);
+                DemoClean("progs"); Shot(dir, "clean-programs" + sfx);
+                E<Border>("LeftoverCard").Visibility = Visibility.Collapsed;
+                E<RadioButton>("CleanTabJunk").IsChecked = true;
                 Navigate("NavTools");
                 ShowPage("PageStartup"); if (!dark) LoadStartup(true); Shot(dir, "startup" + sfx);
                 ShowPage("PageTasks"); if (!dark) LoadTasks(true); Shot(dir, "tasks" + sfx);

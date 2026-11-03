@@ -13,11 +13,13 @@
     <DockPanel Grid.Column="0">
         <Button x:Name="ThemeToggle" DockPanel.Dock="Bottom" Style="{StaticResource IconButton}" Tag="&#xE708;"
                 ToolTip="Светлая / тёмная тема" Margin="0,0,0,20"/>
+        <ScrollViewer VerticalScrollBarVisibility="Hidden" HorizontalScrollBarVisibility="Disabled">
         <StackPanel Margin="0,20,0,0">
             <Button x:Name="FabOptimize" Style="{StaticResource Fab}" Tag="&#xE945;" ToolTip="Оптимизировать"
                     HorizontalAlignment="Center" Margin="0,0,0,24"/>
             <RadioButton x:Name="NavHome" GroupName="nav" Style="{StaticResource NavItem}" Tag="&#xE80F;" Content="Главная" IsChecked="True"/>
             <RadioButton x:Name="NavOptimize" GroupName="nav" Style="{StaticResource NavItem}" Tag="&#xE945;" Content="Оптимизация"/>
+            <RadioButton x:Name="NavClean" GroupName="nav" Style="{StaticResource NavItem}" Tag="&#xEA99;" Content="Очистка"/>
             <RadioButton x:Name="NavCustomize" GroupName="nav" Style="{StaticResource NavItem}" Tag="&#xE771;" Content="Настройка"/>
             <RadioButton x:Name="NavNetwork" GroupName="nav" Style="{StaticResource NavItem}" Tag="&#xE701;" Content="Сеть"/>
             <RadioButton x:Name="NavBench" GroupName="nav" Style="{StaticResource NavItem}" Tag="&#xE9D9;" Content="Замер"/>
@@ -25,6 +27,7 @@
             <RadioButton x:Name="NavLog" GroupName="nav" Style="{StaticResource NavItem}" Tag="&#xE81C;" Content="Журнал"/>
             <RadioButton x:Name="NavAbout" GroupName="nav" Style="{StaticResource NavItem}" Tag="&#xE946;" Content="О программе"/>
         </StackPanel>
+        </ScrollViewer>
     </DockPanel>
 
     <!-- ================================================================ CONTENT PANE -->
@@ -182,6 +185,155 @@
                         <TextBlock Style="{StaticResource BodyMedium}" LineHeight="22"
                                    Text="• Без алгоритма Нейгла: мелкие игровые пакеты уходят сразу, без задержки до 200 мс.&#x0a;• Сетевая карта в режиме низкой задержки: без Interrupt Moderation, Flow Control, LSO и Packet Coalescing.&#x0a;• Сетевая карта и Wi-Fi без энергосбережения, Wi-Fi без фонового поиска сетей — нет скачков пинга.&#x0a;• TCP: автонастройка окна, RSS по всем ядрам, без ограничения сети для мультимедиа, QoS без резерва.&#x0a;&#x0a;Всё попадает в бэкап и откатывается. Тонкая настройка — «Оптимизация» → «Сеть и задержка». Пинг до сервера игры зависит в первую очередь от провайдера и расстояния: твики убирают задержки внутри компьютера и домашней сети, но не ускоряют сам интернет."/>
                     </Border>
+                </StackPanel>
+            </ScrollViewer>
+
+            <!-- ============================================================ CLEANUP (junk / disk / programs) -->
+            <ScrollViewer x:Name="PageClean" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled" Visibility="Collapsed">
+                <StackPanel Margin="36,32,36,36" MaxWidth="1040">
+                    <TextBlock Style="{StaticResource HeadlineMedium}" Text="Очистка"/>
+                    <TextBlock Style="{StaticResource BodyMedium}" FontSize="15" Margin="0,6,0,20"
+                               Text="Мусор и кэши, что занимает место на диске и полное удаление программ вместе с остатками в папках и реестре."/>
+                    <StackPanel Orientation="Horizontal" Margin="0,0,0,20">
+                        <RadioButton x:Name="CleanTabJunk" GroupName="cleantab" Style="{StaticResource Segment}" Tag="20,0,0,20" Content="Мусор" IsChecked="True" MinWidth="150"/>
+                        <RadioButton x:Name="CleanTabDisk" GroupName="cleantab" Style="{StaticResource Segment}" Tag="0" Content="Место на диске" MinWidth="150"/>
+                        <RadioButton x:Name="CleanTabProgs" GroupName="cleantab" Style="{StaticResource Segment}" Tag="0,20,20,0" Content="Программы" MinWidth="150"/>
+                    </StackPanel>
+
+                    <!-- ======================================== junk -->
+                    <StackPanel x:Name="CleanJunkPanel">
+                        <Border CornerRadius="28" Background="{DynamicResource PrimaryContainer}" Padding="32,26">
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="Auto"/>
+                                </Grid.ColumnDefinitions>
+                                <StackPanel VerticalAlignment="Center">
+                                    <TextBlock x:Name="JunkTitle" FontFamily="{StaticResource DisplayFont}" FontSize="26" TextWrapping="Wrap"
+                                               Foreground="{DynamicResource OnPrimaryContainer}" Text="Найдём, что можно удалить"/>
+                                    <TextBlock x:Name="JunkText" Margin="0,8,0,20" TextWrapping="Wrap" FontSize="14" LineHeight="21" Opacity="0.85"
+                                               Foreground="{DynamicResource OnPrimaryContainer}"
+                                               Text="Временные файлы, кэши браузеров и программ, скачанные обновления, дампы падений. Личные файлы, пароли и история браузера не трогаются."/>
+                                    <WrapPanel>
+                                        <Button x:Name="JunkScan" Style="{StaticResource FilledButton}" Tag="&#xE721;" Content="Найти мусор" Margin="0,0,8,8"/>
+                                        <Button x:Name="JunkClean" Style="{StaticResource OutlinedButton}" Tag="&#xE74D;" Content="Очистить выбранное" Margin="0,0,8,8"/>
+                                        <Button x:Name="JunkDeep" Style="{StaticResource TextButton}" Foreground="{DynamicResource OnPrimaryContainer}" Content="Глубокая очистка (DISM, TRIM)" Margin="0,0,8,8"/>
+                                    </WrapPanel>
+                                </StackPanel>
+                                <StackPanel x:Name="JunkScore" Grid.Column="1" Margin="28,0,8,0" VerticalAlignment="Center" Visibility="Collapsed">
+                                    <TextBlock x:Name="JunkValue" FontFamily="{StaticResource DisplayFont}" FontSize="48" FontWeight="SemiBold"
+                                               Foreground="{DynamicResource Primary}" HorizontalAlignment="Center"/>
+                                    <TextBlock x:Name="JunkCaption" FontSize="13" Foreground="{DynamicResource OnPrimaryContainer}" HorizontalAlignment="Center" Opacity="0.85" Text="можно освободить"/>
+                                </StackPanel>
+                            </Grid>
+                        </Border>
+                        <TextBlock Style="{StaticResource TitleSmall}" Text="Что чистить"/>
+                        <Border Style="{StaticResource OutlinedCard}" Padding="0">
+                            <StackPanel x:Name="JunkList"/>
+                        </Border>
+                    </StackPanel>
+
+                    <!-- ======================================== disk usage -->
+                    <StackPanel x:Name="CleanDiskPanel" Visibility="Collapsed">
+                        <WrapPanel>
+                            <WrapPanel x:Name="DiskDrives" Margin="0,0,12,12" VerticalAlignment="Top"/>
+                            <Button x:Name="DiskScan" Style="{StaticResource FilledButton}" Tag="&#xE721;" Content="Сканировать" Margin="0,0,8,12" VerticalAlignment="Top"/>
+                            <Button x:Name="DiskCancel" Style="{StaticResource TextButton}" Content="Остановить" Margin="0,0,8,12" Visibility="Collapsed" VerticalAlignment="Top"/>
+                        </WrapPanel>
+                        <Border x:Name="DiskSummary" Style="{StaticResource FilledCard}" Margin="0,0,0,16" Visibility="Collapsed">
+                            <StackPanel>
+                                <DockPanel>
+                                    <TextBlock x:Name="DiskFreeText" DockPanel.Dock="Right" Style="{StaticResource BodyMedium}" VerticalAlignment="Bottom"/>
+                                    <TextBlock x:Name="DiskUsedText" FontFamily="{StaticResource DisplayFont}" FontSize="22"/>
+                                </DockPanel>
+                                <Border CornerRadius="5" Height="10" Margin="0,12,0,0" Background="{DynamicResource SurfaceContainerHighest}">
+                                    <Grid x:Name="DiskBarHost">
+                                        <Border x:Name="DiskBar" CornerRadius="5" Background="{DynamicResource Primary}" HorizontalAlignment="Left" Width="0"/>
+                                    </Grid>
+                                </Border>
+                            </StackPanel>
+                        </Border>
+                        <TextBlock x:Name="DiskStatus" Style="{StaticResource BodyMedium}" Margin="4,0,0,12" TextWrapping="Wrap"
+                                   Text="Выбери диск и нажми «Сканировать»: покажем, какие папки и файлы занимают больше всего места. Полный диск на SSD сканируется 10–60 секунд."/>
+                        <DockPanel x:Name="DiskToolbar" Margin="0,0,0,12" Visibility="Collapsed">
+                            <StackPanel DockPanel.Dock="Left" Orientation="Horizontal" Margin="0,0,12,0">
+                                <RadioButton x:Name="DiskViewFolders" GroupName="diskview" Style="{StaticResource Segment}" Tag="20,0,0,20" Content="Папки" IsChecked="True"/>
+                                <RadioButton x:Name="DiskViewFiles" GroupName="diskview" Style="{StaticResource Segment}" Tag="0,20,20,0" Content="Большие файлы"/>
+                            </StackPanel>
+                            <Button x:Name="DiskDelete" DockPanel.Dock="Right" Style="{StaticResource DangerButton}" Tag="&#xE74D;" Content="Удалить выбранное"/>
+                            <CheckBox x:Name="DiskPermanent" DockPanel.Dock="Right" Style="{StaticResource Switch}" Padding="0" Content="Мимо корзины" Margin="0,0,16,0" VerticalAlignment="Center"/>
+                            <Grid/>
+                        </DockPanel>
+                        <DockPanel x:Name="DiskCrumbs" Margin="0,0,0,8" Visibility="Collapsed">
+                            <Button x:Name="DiskUp" DockPanel.Dock="Left" Style="{StaticResource IconButton}" Tag="&#xE74A;" ToolTip="Вверх" Margin="0,0,8,0"/>
+                            <Button x:Name="DiskOpen" DockPanel.Dock="Right" Style="{StaticResource TextButton}" Tag="&#xE838;" Content="Открыть в Проводнике"/>
+                            <TextBlock x:Name="DiskPath" VerticalAlignment="Center" FontFamily="{StaticResource MonoFont}" FontSize="13" TextTrimming="CharacterEllipsis"
+                                       Foreground="{DynamicResource OnSurfaceVariant}"/>
+                        </DockPanel>
+                        <Border x:Name="DiskCard" Style="{StaticResource OutlinedCard}" Padding="0" Visibility="Collapsed">
+                            <StackPanel x:Name="DiskList"/>
+                        </Border>
+                    </StackPanel>
+
+                    <!-- ======================================== programs -->
+                    <StackPanel x:Name="CleanProgsPanel" Visibility="Collapsed">
+                        <WrapPanel>
+                            <Border CornerRadius="28" Background="{DynamicResource SurfaceContainerHigh}" Height="48" Padding="18,0" Width="320" HorizontalAlignment="Left" Margin="0,0,12,12">
+                                <Grid>
+                                    <TextBlock Style="{StaticResource Icon}" Text="&#xE721;" FontSize="16" HorizontalAlignment="Left" Foreground="{DynamicResource OnSurfaceVariant}"/>
+                                    <TextBlock x:Name="ProgsSearchHint" Text="Поиск программ" Margin="30,0,0,0" VerticalAlignment="Center" Foreground="{DynamicResource OnSurfaceVariant}" IsHitTestVisible="False"/>
+                                    <TextBox x:Name="ProgsSearch" Margin="27,0,0,0" VerticalAlignment="Center" Background="Transparent" BorderThickness="0" FontSize="15"
+                                             Foreground="{DynamicResource OnSurface}" CaretBrush="{DynamicResource Primary}" FocusVisualStyle="{x:Null}"/>
+                                </Grid>
+                            </Border>
+                            <StackPanel Orientation="Horizontal" Margin="0,4,12,12" VerticalAlignment="Top">
+                                <RadioButton x:Name="ProgsSortName" GroupName="progsort" Style="{StaticResource Segment}" Tag="20,0,0,20" Content="Имя" IsChecked="True" MinWidth="90"/>
+                                <RadioButton x:Name="ProgsSortSize" GroupName="progsort" Style="{StaticResource Segment}" Tag="0" Content="Размер" MinWidth="90"/>
+                                <RadioButton x:Name="ProgsSortDate" GroupName="progsort" Style="{StaticResource Segment}" Tag="0,20,20,0" Content="Дата" MinWidth="90"/>
+                            </StackPanel>
+                        </WrapPanel>
+                        <WrapPanel>
+                            <Button x:Name="ProgsUninstall" Style="{StaticResource DangerButton}" Tag="&#xE74D;" Content="Удалить выбранные" Margin="0,0,8,12"/>
+                            <CheckBox x:Name="ProgsQuiet" Style="{StaticResource Switch}" Padding="0" Content="Тихо, где возможно" IsChecked="True" Margin="8,0,20,12" VerticalAlignment="Center"
+                                      ToolTip="MSI, Inno Setup и NSIS удаляются без окон и вопросов. Остальные программы покажут свой деинсталлятор."/>
+                            <Button x:Name="ProgsRefresh" Style="{StaticResource TextButton}" Tag="&#xE72C;" Content="Обновить" Margin="0,0,8,12"/>
+                            <Button x:Name="ProgsStore" Style="{StaticResource TextButton}" Tag="&#xE719;" Content="Приложения из Store" Margin="0,0,8,12"/>
+                            <Button x:Name="ProgsBackups" Style="{StaticResource TextButton}" Tag="&#xE8B7;" Content="Бэкапы реестра" Margin="0,0,8,12"/>
+                        </WrapPanel>
+
+                        <!-- progress of a running batch -->
+                        <Border x:Name="ProgsRun" Style="{StaticResource FilledCard}" Margin="0,0,0,16" Visibility="Collapsed">
+                            <DockPanel>
+                                <Button x:Name="ProgsSkip" DockPanel.Dock="Right" Style="{StaticResource TextButton}" Content="Не ждать" VerticalAlignment="Center"
+                                        ToolTip="Перестать ждать деинсталлятор и перейти к следующей программе"/>
+                                <StackPanel>
+                                    <TextBlock x:Name="ProgsRunTitle" Style="{StaticResource TitleMedium}" Text="Удаляю…"/>
+                                    <TextBlock x:Name="ProgsRunText" Style="{StaticResource BodyMedium}" Margin="0,4,0,0" TextWrapping="Wrap"/>
+                                </StackPanel>
+                            </DockPanel>
+                        </Border>
+
+                        <!-- leftovers found after uninstall -->
+                        <Border x:Name="LeftoverCard" CornerRadius="24" Background="{DynamicResource TertiaryContainer}" Padding="24,20" Margin="0,0,0,16" Visibility="Collapsed">
+                            <StackPanel>
+                                <TextBlock x:Name="LeftoverTitle" FontFamily="{StaticResource DisplayFont}" FontSize="22" TextWrapping="Wrap" Foreground="{DynamicResource OnTertiaryContainer}"/>
+                                <TextBlock x:Name="LeftoverText" Margin="0,6,0,14" TextWrapping="Wrap" FontSize="13.5" LineHeight="20" Opacity="0.9" Foreground="{DynamicResource OnTertiaryContainer}"
+                                           Text="Отмечено то, что точно принадлежит программе. «Похоже» проверь сам. Папки уходят в корзину, разделы реестра перед удалением сохраняются в .reg."/>
+                                <Border CornerRadius="16" Background="{DynamicResource Surface}">
+                                    <StackPanel x:Name="LeftoverList"/>
+                                </Border>
+                                <WrapPanel Margin="0,14,0,0">
+                                    <Button x:Name="LeftoverRemove" Style="{StaticResource FilledButton}" Tag="&#xE74D;" Content="Удалить остатки" Margin="0,0,8,0"/>
+                                    <Button x:Name="LeftoverSkip" Style="{StaticResource TextButton}" Foreground="{DynamicResource OnTertiaryContainer}" Content="Оставить"/>
+                                </WrapPanel>
+                            </StackPanel>
+                        </Border>
+
+                        <TextBlock x:Name="ProgsStatus" Style="{StaticResource BodyMedium}" Margin="4,0,0,12"/>
+                        <Border Style="{StaticResource OutlinedCard}" Padding="0">
+                            <StackPanel x:Name="ProgsList"/>
+                        </Border>
+                    </StackPanel>
                 </StackPanel>
             </ScrollViewer>
 
@@ -382,9 +534,9 @@
                                 </Border>
                                 <TextBlock DockPanel.Dock="Top" Style="{StaticResource TitleLarge}" Text="Очистка" Margin="0,16,0,6"/>
                                 <TextBlock DockPanel.Dock="Top" Style="{StaticResource BodyMedium}" Margin="0,0,0,16"
-                                           Text="Временные файлы, старые компоненты обновлений Windows, TRIM для SSD и кэш DNS. Сколько освободилось — видно в «Замере»."/>
+                                           Text="Мусор и кэши, анализ места на диске и удаление программ вместе с остатками в папках и реестре."/>
                                 <WrapPanel VerticalAlignment="Bottom">
-                                    <Button x:Name="ToolClean" Style="{StaticResource TonalButton}" Tag="&#xE74D;" Content="Очистить" Margin="0,0,8,8"/>
+                                    <Button x:Name="ToolClean" Style="{StaticResource TonalButton}" Tag="&#xEA99;" Content="Открыть" Margin="0,0,8,8"/>
                                     <Button x:Name="ToolCleanMgr" Style="{StaticResource TextButton}" Content="Очистка диска Windows" Margin="0,0,8,8"/>
                                 </WrapPanel>
                             </DockPanel>
