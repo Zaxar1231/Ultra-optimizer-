@@ -261,7 +261,7 @@
                                 <RadioButton x:Name="DiskViewFiles" GroupName="diskview" Style="{StaticResource Segment}" Tag="0,20,20,0" Content="Большие файлы"/>
                             </StackPanel>
                             <Button x:Name="DiskDelete" DockPanel.Dock="Right" Style="{StaticResource DangerButton}" Tag="&#xE74D;" Content="Удалить выбранное"/>
-                            <CheckBox x:Name="DiskPermanent" DockPanel.Dock="Right" Style="{StaticResource Switch}" Padding="0" Content="Мимо корзины" Margin="0,0,16,0" VerticalAlignment="Center"/>
+                            <CheckBox x:Name="DiskPermanent" DockPanel.Dock="Right" Style="{StaticResource Switch}" Padding="0" Foreground="{DynamicResource OnSurface}" Content="Мимо корзины" Margin="0,0,16,0" VerticalAlignment="Center"/>
                             <Grid/>
                         </DockPanel>
                         <DockPanel x:Name="DiskCrumbs" Margin="0,0,0,8" Visibility="Collapsed">
@@ -294,7 +294,7 @@
                         </WrapPanel>
                         <WrapPanel>
                             <Button x:Name="ProgsUninstall" Style="{StaticResource DangerButton}" Tag="&#xE74D;" Content="Удалить выбранные" Margin="0,0,8,12"/>
-                            <CheckBox x:Name="ProgsQuiet" Style="{StaticResource Switch}" Padding="0" Content="Тихо, где возможно" IsChecked="True" Margin="8,0,20,12" VerticalAlignment="Center"
+                            <CheckBox x:Name="ProgsQuiet" Style="{StaticResource Switch}" Padding="0" Foreground="{DynamicResource OnSurface}" Content="Тихо, где возможно" IsChecked="True" Margin="8,0,20,12" VerticalAlignment="Center"
                                       ToolTip="MSI, Inno Setup и NSIS удаляются без окон и вопросов. Остальные программы покажут свой деинсталлятор."/>
                             <Button x:Name="ProgsRefresh" Style="{StaticResource TextButton}" Tag="&#xE72C;" Content="Обновить" Margin="0,0,8,12"/>
                             <Button x:Name="ProgsStore" Style="{StaticResource TextButton}" Tag="&#xE719;" Content="Приложения из Store" Margin="0,0,8,12"/>
