@@ -232,6 +232,22 @@ function Get-NVPI {
 # =====================================================================
 #  UNDO
 # =====================================================================
+# Older versions set SvcHostSplitDisable=1 on every service (Atlas). On Windows 11 24H2+ that can stop
+# Explorer from starting, so any later run puts the original values back first.
+if (-not $Undo) {
+    $oldSplit = @($BK.Reg | Where-Object { $_.Name -eq 'SvcHostSplitDisable' })
+    if ($oldSplit.Count) {
+        Step "Reverting per-service svchost split change from an older version ($($oldSplit.Count) services)"
+        foreach ($r in $oldSplit) {
+            if ($r.Exists) { Set-ItemProperty -Path $r.Path -Name $r.Name -Value $r.Value -Force }
+            else { Remove-ItemProperty -Path $r.Path -Name $r.Name -Force }
+        }
+        $BK.Reg = @($BK.Reg | Where-Object { $_.Name -ne 'SvcHostSplitDisable' })
+        Save-BK
+        Ok "done"
+    }
+}
+
 if ($Undo) {
     if (-not (Test-Path $BKFile)) { Write-Host "No backup found - nothing to undo." -ForegroundColor Red; Stop-Transcript | Out-Null; exit }
     Step "Restoring registry ($($BK.Reg.Count) values)"
@@ -576,12 +592,11 @@ if (Use 'fs.lastaccess') {
 }
 if (Use 'svc.split') {
     Step "Service host grouping (Atlas: less RAM, fewer processes)"
-    $script:Bulk = $true
-    Get-ChildItem 'HKLM:\SYSTEM\CurrentControlSet\Services' | Where-Object { $_.PSChildName -notmatch 'Xbl|Xbox' } | ForEach-Object {
-        if ($null -ne (Get-ItemProperty $_.PSPath).Start) { Try-Tweak $_.PSPath 'SvcHostSplitDisable' 1 }
-    }
-    $script:Bulk = $false
-    Ok "done"
+    # The supported knob: Windows groups services itself when RAM is below this threshold (as on 4 GB PCs).
+    # The old per-service SvcHostSplitDisable=1 (Atlas) broke Explorer on Windows 11 24H2+ and is no longer used.
+    $kb = [int64]((Get-CimInstance Win32_ComputerSystem).TotalPhysicalMemory / 1KB) + 1024
+    Set-Tweak 'HKLM:\SYSTEM\CurrentControlSet\Control' 'SvcHostSplitThresholdInKB' ([int]$kb)
+    Ok "svchost grouping via SvcHostSplitThresholdInKB (Windows' own low-RAM mode)"
 }
 if (Use 'net.throttle') {
     Step "Network throttling off"
