@@ -43,6 +43,29 @@ $GUI = [bool]$env:UO_GUI
 function Step($t) { if ($GUI) { Write-Host "##step $t" } else { Write-Host "`n>>> $t" -ForegroundColor Cyan } }
 function Ok($t)   { if ($GUI) { Write-Host "##ok $t" }   else { Write-Host "    $t" -ForegroundColor Green } }
 function Warn($t) { if ($GUI) { Write-Host "##warn $t" } else { Write-Host "    $t" -ForegroundColor Yellow } }
+# Remove-AppxPackage can block forever (busy deployment queue: Store updating apps, app in use).
+# Run it in a job with a time limit so the optimizer never stalls on one package.
+function Remove-AppxTimed($pkg, $limit = 90) {
+    Write-Host "    removing $($pkg.Name)..."
+    $job = Start-Job -ScriptBlock { param($full) Remove-AppxPackage -Package $full -ErrorAction Stop } -ArgumentList $pkg.PackageFullName
+    $sw = [Diagnostics.Stopwatch]::StartNew()
+    while (-not (Wait-Job $job -Timeout 15)) {
+        if ($sw.Elapsed.TotalSeconds -ge $limit) {
+            Stop-Job $job; Remove-Job $job -Force
+            Warn "skip $($pkg.Name): Windows did not answer in $limit s (Store busy updating apps?) - remove it later in Tools -> Apps"
+            return $false
+        }
+        Write-Host ("    ... still removing $($pkg.Name) ({0} s)" -f [int]$sw.Elapsed.TotalSeconds)
+    }
+    $err = $job.ChildJobs[0].Error | Select-Object -First 1
+    Remove-Job $job -Force
+    if (Get-AppxPackage -Name $pkg.Name | Where-Object PackageFullName -eq $pkg.PackageFullName) {
+        Warn "could not remove $($pkg.Name)$(if ($err) { ': ' + $err })"
+        return $false
+    }
+    Ok "removed $($pkg.Name)"
+    return $true
+}
 # Runs a slow console tool hidden, prints a heartbeat every 30 s and stops it after $limit seconds.
 function Run-Long($label, $exe, $argLine, $limit) {
     Write-Host "    $label - may take several minutes..."
@@ -254,7 +277,12 @@ if ($Undo) {
     Step "Re-registering removed apps"
     foreach ($a in $BK.Appx) {
         $prov = Get-AppxProvisionedPackage -Online | Where-Object { $_.DisplayName -eq $a }
-        if ($prov) { Add-AppxPackage -DisableDevelopmentMode -Register ([Environment]::ExpandEnvironmentVariables($prov.InstallLocation)); Ok "restored $a" }
+        if ($prov) {
+            Write-Host "    restoring $a..."
+            $job = Start-Job -ScriptBlock { param($m) Add-AppxPackage -DisableDevelopmentMode -Register $m -ErrorAction Stop } -ArgumentList ([Environment]::ExpandEnvironmentVariables($prov.InstallLocation))
+            if (Wait-Job $job -Timeout 120) { Ok "restored $a" } else { Stop-Job $job; Warn "restore of $a timed out - install it from Microsoft Store" }
+            Remove-Job $job -Force
+        }
         else { Warn "$a - reinstall from Microsoft Store if you need it" }
     }
     if ($BK.Misc.NvidiaProfile) {
@@ -318,8 +346,7 @@ if ($SetDns -or $RemoveApps) {
         foreach ($name in @($RemoveApps -split '[,;\s]+' | Where-Object { $_ })) {
             Get-AppxPackage -Name $name | ForEach-Object {
                 if ($BK.Appx -notcontains $_.Name) { $BK.Appx += $_.Name }
-                Remove-AppxPackage $_.PackageFullName
-                if (Get-AppxPackage -Name $_.Name) { Warn "could not remove $($_.Name)" } else { Ok "removed $($_.Name)" }
+                $null = Remove-AppxTimed $_
             }
         }
     }
@@ -859,7 +886,7 @@ if (Use 'apps.junk') {
     foreach ($j in $junk) {
         Get-AppxPackage "$j*" | ForEach-Object {
             if ($BK.Appx -notcontains $_.Name) { $BK.Appx += $_.Name }
-            Remove-AppxPackage $_.PackageFullName; Ok "removed $($_.Name)"
+            $null = Remove-AppxTimed $_
         }
     }
     Ok "kept: Store, Xbox/Game Bar, Photos, Calculator, Camera, Snipping Tool, Notepad, Sticky Notes"
