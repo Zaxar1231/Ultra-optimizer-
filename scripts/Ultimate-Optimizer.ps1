@@ -165,7 +165,9 @@ function Set-Svc($Name, $Start) {   # 2=Auto 3=Manual 4=Disabled
     $p = "HKLM:\SYSTEM\CurrentControlSet\Services\$Name"
     if (-not (Test-Path $p)) { return }
     Try-Tweak $p 'Start' $Start
-    if ($Start -eq 4) { Stop-Service $Name -Force }
+    # sc.exe stop only sends the request; Stop-Service waits forever for drivers/services that cannot stop
+    # (e.g. GpuEnergyDrv). Disabled takes full effect after the reboot anyway.
+    if ($Start -eq 4) { & sc.exe stop $Name 2>&1 | Out-Null }
     Ok "service $Name -> $(@{2='Auto';3='Manual';4='Disabled'}[$Start])"
 }
 function Disable-Task($TaskPath) {
